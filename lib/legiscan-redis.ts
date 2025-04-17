@@ -17,6 +17,7 @@ try {
 
 // Monthly query limit
 const MONTHLY_LIMIT = 30000;
+const QUOTA_ALERT_THRESHOLD = 25000; // Send alert when quota reaches this value
 
 // Cache TTL in seconds (default: 1 hour)
 const CACHE_TTL_SECONDS = process.env.CACHE_TTL 
@@ -34,13 +35,40 @@ let cachedSessionId: number | null = null;
 
 /**
  * Get current month key for quota tracking
- * Format: legiscan:quota:YYYY-MM
+ * Format: ls:usage:YYYY-MM
  */
 function getCurrentMonthKey(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `legiscan:quota:${year}-${month}`;
+  const yearMonth = now.toISOString().slice(0, 7); // "2025-04"
+  return `ls:usage:${yearMonth}`;
+}
+
+/**
+ * Send an alert when quota threshold is reached
+ */
+async function sendQuotaAlert(currentUsage: number): Promise<void> {
+  const webhookUrl = process.env.ALERT_WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.warn('[LegiScan] No webhook URL configured for quota alerts');
+    return;
+  }
+
+  try {
+    const monthKey = getCurrentMonthKey();
+    const message = {
+      text: `🚨 LegiScan API Quota Alert: ${currentUsage}/${MONTHLY_LIMIT} queries used for ${monthKey}. Please check the usage and consider adjusting.`
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message)
+    });
+    
+    console.log(`[LegiScan] Quota alert sent for ${currentUsage} queries`);
+  } catch (error) {
+    console.error('[LegiScan] Failed to send quota alert:', error);
+  }
 }
 
 /**
@@ -68,15 +96,24 @@ export async function lsFetch(op: string, params: Record<string, string | number
     // Continue with API call if cache fails
   }
   
-  // Check monthly quota
+  // Check monthly quota from Redis
   const quotaKey = getCurrentMonthKey();
   let currentUsage = 0;
   
   try {
+    // Get current usage from Redis
     currentUsage = Number(await redis.get(quotaKey) || 0);
     
+    // Check if we've exceeded the monthly limit
     if (currentUsage >= MONTHLY_LIMIT) {
       throw new Error(`LegiScan monthly query quota exceeded for ${quotaKey}`);
+    }
+    
+    // Check if we should send an alert (only once when threshold is crossed)
+    if (currentUsage === QUOTA_ALERT_THRESHOLD) {
+      sendQuotaAlert(currentUsage).catch(err => 
+        console.error('[LegiScan] Failed to send quota alert:', err)
+      );
     }
   } catch (error) {
     if (error.message.includes('quota exceeded')) {
@@ -115,9 +152,23 @@ export async function lsFetch(op: string, params: Record<string, string | number
     
     // Increment monthly quota counter in Redis
     try {
-      await redis.incr(quotaKey);
-      // Set TTL on the counter if it's new
+      // Increment the counter
+      const newCount = await redis.incr(quotaKey);
+      
+      // Set TTL on the counter to ensure it expires after the month
       await redis.expire(quotaKey, MONTHLY_QUOTA_TTL_SECONDS);
+      
+      // Check if we just crossed the threshold with this increment
+      if (newCount === QUOTA_ALERT_THRESHOLD) {
+        sendQuotaAlert(newCount).catch(err => 
+          console.error('[LegiScan] Failed to send quota alert:', err)
+        );
+      }
+      
+      // Log every 1000 queries for monitoring
+      if (newCount % 1000 === 0) {
+        console.log(`[LegiScan] Quota usage milestone: ${newCount}/${MONTHLY_LIMIT} API calls for ${quotaKey}`);
+      }
     } catch (error) {
       console.error(`[LegiScan] Redis quota update error:`, error);
       // Continue despite Redis errors
