@@ -48,7 +48,14 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <LegislationTracker />
+              <div className="space-y-4">
+                <LegislationTracker />
+                <div className="text-center mt-4">
+                  <Button variant="outline" asChild>
+                    <a href="/bills">View All Legislation</a>
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
