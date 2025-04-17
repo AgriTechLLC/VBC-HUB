@@ -109,12 +109,8 @@ export async function lsFetch(op: string, params: Record<string, string | number
       throw new Error(`LegiScan monthly query quota exceeded for ${quotaKey}`);
     }
     
-    // Check if we should send an alert (only once when threshold is crossed)
-    if (currentUsage === QUOTA_ALERT_THRESHOLD) {
-      sendQuotaAlert(currentUsage).catch(err => 
-        console.error('[LegiScan] Failed to send quota alert:', err)
-      );
-    }
+    // Only check threshold in initial check, actual alert will be sent in the increment step
+    // This avoids duplicate alerts and is mainly for code consistency
   } catch (error) {
     if (error.message.includes('quota exceeded')) {
       throw error;
@@ -158,11 +154,16 @@ export async function lsFetch(op: string, params: Record<string, string | number
       // Set TTL on the counter to ensure it expires after the month
       await redis.expire(quotaKey, MONTHLY_QUOTA_TTL_SECONDS);
       
-      // Check if we just crossed the threshold with this increment
-      if (newCount === QUOTA_ALERT_THRESHOLD) {
-        sendQuotaAlert(newCount).catch(err => 
-          console.error('[LegiScan] Failed to send quota alert:', err)
-        );
+      // Check if we crossed the threshold and haven't alerted yet this month
+      const alertedKey = `ls:alerted:${quotaKey}`;
+      if (newCount >= QUOTA_ALERT_THRESHOLD) {
+        // Check if we've already alerted for this month
+        const alreadyAlerted = await redis.get(alertedKey);
+        if (!alreadyAlerted) {
+          await sendQuotaAlert(newCount);
+          // Set flag to avoid duplicate alerts with 32-day TTL
+          await redis.set(alertedKey, '1', { ex: MONTHLY_QUOTA_TTL_SECONDS });
+        }
       }
       
       // Log every 1000 queries for monitoring

@@ -45,7 +45,13 @@ export function LegislationTracker() {
         const data = await response.json();
         setBills(data.bills);
         setLastUpdated(data.lastUpdated);
-        setIsUsingMockData(data.cached === false && process.env.NODE_ENV === 'development');
+        // Determine if we're using mock data
+        // Mock data if we're in development mode and either:
+        // 1. The data is not cached (which means it's fresh mock data)
+        // 2. USE_REAL_API is false (which means we're in mock mode)
+        const isMock = process.env.NODE_ENV === 'development' && 
+                      (data.cached === false || process.env.USE_REAL_API !== 'true');
+        setIsUsingMockData(isMock);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching bills:', error);

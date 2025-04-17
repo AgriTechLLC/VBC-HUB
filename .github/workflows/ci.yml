@@ -9,15 +9,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
       
       - name: Install dependencies
@@ -30,7 +33,7 @@ jobs:
         run: npm run typecheck || npm run type-check || echo "No type check script found"
       
       - name: Run tests
-        run: npm test
+        run: npm test -- --runInBand
         env:
           # Use mock data for tests to avoid API calls
           USE_REAL_API: 'false'
