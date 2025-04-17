@@ -8,6 +8,7 @@ import { ExternalLink, ArrowLeft, FileText, Share2 } from 'lucide-react';
 import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan';
 import BillSummary from '@/components/bill-summary';
 import BillTimeline from '@/components/bill-timeline';
+import VoteDonut from '@/components/vote-donut';
 import AmendmentDiff from '@/components/amendment-diff';
 
 // Generate metadata for the page
@@ -103,6 +104,7 @@ export default async function BillDetailPage({ params }: { params: { id: string 
         <CardContent>
           <BillSummary billId={params.id} />
           <BillTimeline bill={bill} />
+          <VoteDonut billId={params.id} />
           
           <div className="mb-6 mt-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Bill Progress</h3>
