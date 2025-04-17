@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ExternalLink, ArrowLeft, FileText, Share2 } from 'lucide-react';
 import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan';
+import BillSummary from '@/components/bill-summary';
 
 // Generate metadata for the page
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
@@ -94,7 +95,9 @@ export default async function BillDetailPage({ params }: { params: { id: string 
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-6">
+          <BillSummary billId={params.id} />
+          
+          <div className="mb-6 mt-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Bill Progress</h3>
             <Progress value={bill.progress} className="h-2" />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
