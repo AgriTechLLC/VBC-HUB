@@ -153,8 +153,8 @@ export async function refreshBills() {
       const blockchainBillIds: number[] = [];
       
       for (const [billId, bill] of Object.entries(masterList)) {
-        const title = bill.title?.toLowerCase() || '';
-        const description = bill.description?.toLowerCase() || '';
+        const title = (bill as any).title?.toLowerCase() || '';
+        const description = (bill as any).description?.toLowerCase() || '';
         
         const isBlockchainRelated = blockchainKeywords.some(keyword => 
           title.includes(keyword) || description.includes(keyword)

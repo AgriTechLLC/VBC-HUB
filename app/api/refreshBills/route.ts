@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Return error but with 200 status so Vercel doesn't retry immediately
     return NextResponse.json({
       success: false,
-      error: error.message || 'Unknown error'
+      error: (error as Error).message || 'Unknown error'
     }, { status: 200 });
   }
 }

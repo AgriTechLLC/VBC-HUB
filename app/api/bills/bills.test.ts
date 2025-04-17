@@ -2,13 +2,14 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createServer } from 'http';
 import { apiResolver } from 'next/dist/server/api-utils/node';
 import { GET } from './route';
+import type { Server, IncomingMessage, ServerResponse } from 'http';
 
 // Mock Redis
 vi.mock('@upstash/redis', () => {
   return {
     Redis: vi.fn().mockImplementation(() => {
       return {
-        get: vi.fn().mockImplementation((key) => {
+        get: vi.fn().mockImplementation((key: string) => {
           if (key === 'vbc:bills:all') {
             return null; // Simulate empty cache
           }
@@ -32,15 +33,16 @@ vi.mock('@/lib/legiscan-redis', () => {
 });
 
 describe('/api/bills endpoint', () => {
-  let server;
-  let serverPromise;
+  let server: Server;
+  let serverPromise: Promise<number>;
 
   beforeAll(() => {
     // Set up a test server
-    server = createServer(async (req, res) => {
+    server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
       // Make sure we're testing with mock param
-      if (req.url.indexOf('mock=true') === -1) {
-        req.url = req.url + (req.url.includes('?') ? '&' : '?') + 'mock=true';
+      const url = req.url || '/api/bills';
+      if (url.indexOf('mock=true') === -1) {
+        req.url = url + (url.includes('?') ? '&' : '?') + 'mock=true';
       }
       
       await apiResolver(
@@ -58,9 +60,14 @@ describe('/api/bills endpoint', () => {
     });
     
     // Start the server on a random port
-    serverPromise = new Promise((resolve) => {
+    serverPromise = new Promise<number>((resolve) => {
       server.listen(0, () => {
-        resolve(server.address().port);
+        const address = server.address();
+        if (address && typeof address !== 'string') {
+          resolve(address.port);
+        } else {
+          resolve(0);
+        }
       });
     });
   });

@@ -112,7 +112,7 @@ export async function lsFetch(op: string, params: Record<string, string | number
     // Only check threshold in initial check, actual alert will be sent in the increment step
     // This avoids duplicate alerts and is mainly for code consistency
   } catch (error) {
-    if (error.message.includes('quota exceeded')) {
+    if (error instanceof Error && error.message.includes('quota exceeded')) {
       throw error;
     }
     console.error(`[LegiScan] Redis quota check error:`, error);
@@ -242,7 +242,8 @@ export async function currentVaSession(): Promise<number> {
     // Continue despite cache errors
   }
   
-  return cachedSessionId;
+  // TypeScript doesn't know cachedSessionId is definitely set at this point
+  return cachedSessionId as number;
 }
 
 /**
