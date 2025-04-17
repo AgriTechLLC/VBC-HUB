@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as LegiScan from '@/lib/legiscan';
+import * as LegiScan from '@/lib/legiscan-redis';
+import { Redis } from '@upstash/redis';
 
 // External reference to the bill cache from the main bills API route
-// In production, this would be replaced with a database or Redis
 import { billCache } from '../route';
+
+// Initialize Redis client for bill cache
+let redis: Redis;
+
+try {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL || '',
+    token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+  });
+} catch (error) {
+  console.error('Failed to initialize Redis client in bill detail route:', error);
+  // Will fall back to in-memory cache if Redis fails
+}
+
+// Constants
+const BILLS_CACHE_KEY = 'vbc:bills:all';
+const BILL_CACHE_TTL = process.env.CACHE_TTL ? Math.floor(parseInt(process.env.CACHE_TTL) / 1000) : 3600; // 1 hour in seconds
 
 export async function GET(
   request: NextRequest,
@@ -12,17 +29,41 @@ export async function GET(
   try {
     const billId = params.id;
     
-    // First check if the bill is in our cache
+    // Check for mock parameter
+    const url = new URL(request.url);
+    const useMock = url.searchParams.get('mock') === 'true';
+    
+    if (useMock || (process.env.NODE_ENV === 'development' && !process.env.USE_REAL_API)) {
+      return getMockBill(billId);
+    }
+    
+    // Try to get the bill from Redis first
+    if (redis) {
+      try {
+        // Check if bill exists in the Redis bills cache
+        const cachedBills = await redis.get(BILLS_CACHE_KEY) as Record<string, any> || {};
+        if (cachedBills && cachedBills[billId]) {
+          return NextResponse.json(cachedBills[billId]);
+        }
+        
+        // Also check individual bill cache
+        const cacheBillKey = `vbc:bill:${billId}`;
+        const cachedBill = await redis.get(cacheBillKey);
+        if (cachedBill) {
+          return NextResponse.json(cachedBill);
+        }
+      } catch (error) {
+        console.error(`[API] Redis bill cache read error for ${billId}:`, error);
+        // Continue with in-memory cache or API fetch
+      }
+    }
+    
+    // Check in-memory cache if Redis fails or is empty
     if (billCache[billId]) {
       return NextResponse.json(billCache[billId]);
     }
     
-    // If not in cache, check if we're in development mode with mock data
-    if (process.env.NODE_ENV === 'development' && !process.env.USE_REAL_API) {
-      return getMockBill(billId);
-    }
-    
-    // If we're in production or testing real API, fetch from LegiScan
+    // If not in any cache, fetch from LegiScan
     try {
       const bill = await LegiScan.getBill(parseInt(billId));
       
@@ -41,8 +82,25 @@ export async function GET(
         change_hash: bill.change_hash
       };
       
-      // Add to cache
+      // Add to in-memory cache
       billCache[billId] = billData;
+      
+      // Add to Redis cache if available
+      if (redis) {
+        try {
+          // Cache individual bill
+          const billCacheKey = `vbc:bill:${billId}`;
+          await redis.set(billCacheKey, billData, { ex: BILL_CACHE_TTL });
+          
+          // Update all bills cache
+          const cachedBills = await redis.get(BILLS_CACHE_KEY) as Record<string, any> || {};
+          cachedBills[billId] = billData;
+          await redis.set(BILLS_CACHE_KEY, cachedBills, { ex: BILL_CACHE_TTL });
+        } catch (error) {
+          console.error(`[API] Redis bill cache write error for ${billId}:`, error);
+          // Continue despite Redis errors
+        }
+      }
       
       return NextResponse.json(billData);
     } catch (error) {
@@ -62,7 +120,7 @@ export async function GET(
 }
 
 /**
- * Get a mock bill for development
+ * Get a mock bill for development and testing
  */
 function getMockBill(billId: string) {
   // Mock data for specific bill IDs
@@ -120,6 +178,17 @@ function getMockBill(billId: string) {
       change_hash: "jkl012"
     }
   };
+  
+  // Cache the mock bill in Redis if available
+  if (redis && mockBills[billId]) {
+    try {
+      const billCacheKey = `vbc:bill:${billId}`;
+      redis.set(billCacheKey, mockBills[billId], { ex: BILL_CACHE_TTL });
+    } catch (error) {
+      console.error(`[API] Redis mock bill cache write error for ${billId}:`, error);
+      // Continue despite Redis errors
+    }
+  }
   
   // Return the mock bill if it exists, otherwise 404
   if (mockBills[billId]) {
