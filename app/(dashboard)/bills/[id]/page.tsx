@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { ExternalLink, ArrowLeft, FileText, Share2 } from 'lucide-react';
 import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan';
 import BillSummary from '@/components/bill-summary';
+import AmendmentDiff from '@/components/amendment-diff';
 
 // Generate metadata for the page
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
@@ -55,6 +56,10 @@ export default async function BillDetailPage({ params }: { params: { id: string 
   if (!bill) {
     notFound();
   }
+
+  // Sample amendment data - in a real application, this would come from an API
+  const hasAmendments = bill.amendments && bill.amendments.length > 0;
+  const latestAmendment = hasAmendments ? bill.amendments[0] : null;
   
   return (
     <div className="container mx-auto py-8 px-4">
@@ -128,6 +133,14 @@ export default async function BillDetailPage({ params }: { params: { id: string 
                 Track This Bill
               </Button>
               <Button variant="outline">Contact Your Representative</Button>
+              
+              {latestAmendment && (
+                <AmendmentDiff 
+                  billId={params.id} 
+                  amendmentId={latestAmendment.amendment_id} 
+                  amendmentTitle={`Amendment ${latestAmendment.amendment_label}`} 
+                />
+              )}
             </div>
           </div>
         </CardContent>
