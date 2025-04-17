@@ -8,6 +8,7 @@ Virginia Blockchain Council (VBC) Hub is a centralized platform for blockchain n
 - **Legislation Tracker**: Monitor blockchain-related bills using LegiScan API
 - **Events Grid**: Stay informed about upcoming blockchain events and meetups
 - **Resources**: Access to white papers, job board, and member portal
+- **VBC-GPT**: AI assistant that can answer questions about Virginia blockchain legislation
 
 ## LegiScan API Integration
 
@@ -74,6 +75,9 @@ The following environment variables can be configured:
 | `USE_REAL_API` | Use real API in development | No | false |
 | `NEXT_PUBLIC_BASE_URL` | Base URL for the application | No | http://localhost:3000 |
 | `NEXT_PUBLIC_SHOW_API_STATUS` | Show API status badge in UI | No | false |
+| `OPENAI_API_KEY` | OpenAI API key for VBC-GPT | Yes (for AI) | - |
+| `OPENAI_MODEL` | OpenAI model to use | No | gpt-4o-mini |
+| `EMBED_CHUNK_TOKENS` | Token size for text chunks | No | 900 |
 
 ## Deployment
 
@@ -85,6 +89,9 @@ For production deployment on Vercel:
    ```
    vercel cron add "0 * * * *" api/refreshBills -H "authorization=Bearer $CRON_SECRET"
    ```
+4. For the VBC-GPT functionality:
+   - Ensure OPENAI_API_KEY is set in Vercel environment variables
+   - Verify Redis has vector search capabilities enabled (Upstash Redis Vector)
 
 ## Testing
 
