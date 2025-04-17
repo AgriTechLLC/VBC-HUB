@@ -37,10 +37,10 @@ The system checks for bill updates hourly using LegiScan's change hash feature:
 
 To stay within LegiScan's API quota limits:
 
-- In-memory caching of API responses (can be replaced with Redis in production)
-- Tracking of monthly API usage
+- Redis-based caching of API responses with in-memory fallback
+- Persistent monthly quota tracking with automatic alerts
 - Only fetching details for bills that have changed
-- Environment variables for configuring cache duration
+- Configurable cache duration with TTL for automatic invalidation
 
 ## Getting Started
 
@@ -63,20 +63,27 @@ To stay within LegiScan's API quota limits:
 
 The following environment variables can be configured:
 
-- `LEGISCAN_KEY`: Your LegiScan API key (required)
-- `CACHE_TTL`: Cache duration in milliseconds (default: 3600000 - 1 hour)
-- `VA_SESSION_ID`: Override for Virginia legislative session ID (optional)
-- `USE_REAL_API`: Set to 'true' to use real API in development (default: false)
-- `CRON_SECRET`: Secret token for securing the refresh endpoint (production only)
+| Variable | Purpose | Required | Default |
+|----------|---------|----------|---------|
+| `LEGISCAN_KEY` | LegiScan API key | Yes | - |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL | Yes (prod) | - |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis auth token | Yes (prod) | - |
+| `CRON_SECRET` | Secret for protecting the refresh endpoint | Yes (prod) | - |
+| `ALERT_WEBHOOK_URL` | Slack/Discord webhook for quota alerts | No | - |
+| `CACHE_TTL` | Cache duration in milliseconds | No | 3600000 (1 hour) |
+| `USE_REAL_API` | Use real API in development | No | false |
+| `NEXT_PUBLIC_BASE_URL` | Base URL for the application | No | http://localhost:3000 |
+| `NEXT_PUBLIC_SHOW_API_STATUS` | Show API status badge in UI | No | false |
 
 ## Deployment
 
 For production deployment on Vercel:
 
 1. Add all environment variables to your Vercel project
-2. Configure a Vercel Cron job to hit `/api/refreshBills` hourly:
+2. Set up Redis from the Vercel marketplace (Upstash)
+3. Configure a Vercel Cron job to hit `/api/refreshBills` hourly with the authorization header:
    ```
-   vercel cron add "0 * * * *" api/refreshBills
+   vercel cron add "0 * * * *" api/refreshBills -H "authorization=Bearer $CRON_SECRET"
    ```
 
 ## Testing
@@ -86,6 +93,11 @@ Run the test suite:
 ```
 npm test
 ```
+
+The CI pipeline runs automatically on push and pull requests via GitHub Actions, testing:
+- Linting
+- Type checking
+- Unit and integration tests
 
 ## License
 

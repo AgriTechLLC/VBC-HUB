@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, FileText, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan';
+import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan-redis';
 import { debounce } from '@/lib/utils';
 
 interface Bill {
@@ -29,6 +29,7 @@ export function LegislationTracker() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isUsingMockData, setIsUsingMockData] = useState(false);
 
   // Fetch bills from our API route
   useEffect(() => {
@@ -44,6 +45,7 @@ export function LegislationTracker() {
         const data = await response.json();
         setBills(data.bills);
         setLastUpdated(data.lastUpdated);
+        setIsUsingMockData(data.cached === false && process.env.NODE_ENV === 'development');
         setLoading(false);
       } catch (error) {
         console.error('Error fetching bills:', error);
@@ -140,12 +142,20 @@ export function LegislationTracker() {
         </select>
       </div>
 
-      {/* Last updated timestamp */}
-      {lastUpdated && (
-        <div className="text-xs text-muted-foreground mb-2">
-          Last updated: {new Date(lastUpdated).toLocaleString()}
-        </div>
-      )}
+      {/* Last updated timestamp and API status */}
+      <div className="flex justify-between items-center text-xs text-muted-foreground mb-2">
+        {lastUpdated && (
+          <div>
+            Last updated: {new Date(lastUpdated).toLocaleString()}
+          </div>
+        )}
+        {process.env.NEXT_PUBLIC_SHOW_API_STATUS === 'true' && (
+          <div className="flex items-center">
+            <span className={`inline-block w-2 h-2 rounded-full mr-1 ${isUsingMockData ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
+            <span>{isUsingMockData ? 'Mock Data' : 'Live API'}</span>
+          </div>
+        )}
+      </div>
 
       {/* Bills List */}
       {filteredBills.length === 0 ? (
