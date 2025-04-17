@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import * as LegiScan from '@/lib/legiscan-redis';
+import { embedBill } from '@/lib/embeddings';
 import { Redis } from '@upstash/redis';
 
 // Initialize Redis client for bill cache
@@ -179,6 +180,7 @@ export async function refreshBills() {
     for (const billId of changedBillIds) {
       const billDetails = await LegiScan.getBill(billId);
       
+      // Store bill data in cache
       newBillCache[billId] = {
         bill_id: billDetails.bill_id,
         bill_number: billDetails.bill_number,
@@ -192,6 +194,26 @@ export async function refreshBills() {
         description: billDetails.description || '',
         change_hash: billDetails.change_hash
       };
+      
+      // Generate embeddings for bill text (if not in mock mode)
+      if (process.env.USE_REAL_API === 'true' && process.env.OPENAI_API_KEY) {
+        try {
+          // Get full bill text (when available) for embedding
+          const documentId = billDetails.texts?.[0]?.doc_id;
+          if (documentId) {
+            const billText = await LegiScan.getBillText(documentId);
+            if (billText && billText.doc) {
+              // Extract text from base64 encoded document
+              const textContent = Buffer.from(billText.doc, 'base64').toString();
+              // Create embeddings for text search
+              await embedBill({ bill_id: billDetails.bill_id, text: textContent });
+            }
+          }
+        } catch (error) {
+          console.error(`[API] Error embedding bill ${billId}:`, error);
+          // Continue despite embedding errors
+        }
+      }
     }
     
     // Update the in-memory cache
