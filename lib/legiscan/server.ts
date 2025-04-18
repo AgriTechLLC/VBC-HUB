@@ -23,6 +23,7 @@ const legiscanApi = new LegiScanApi({
 export class ServerLegiScanApi {
   /**
    * Get data from cache or fetch from LegiScan API
+   * Improved error handling to surface API errors with appropriate status codes
    */
   private static async getWithCache<T>(
     cacheKey: string,
@@ -45,19 +46,54 @@ export class ServerLegiScanApi {
 
     // Fetch from API
     console.log(`Cache miss for ${cacheKey}, fetching from API`);
-    const data = await fetchFn();
-
-    // Cache the result if enabled
-    if (CACHE_ENABLED) {
-      try {
-        await kv.set(cacheKey, data, { ex: ttl });
-      } catch (error) {
-        console.error(`Error caching data for ${cacheKey}:`, error);
-        // Continue even if caching fails
+    
+    try {
+      const data = await fetchFn();
+      
+      // Check for API errors in the response
+      // LegiScan returns status: "ERROR" with an alert message when there's an issue
+      const responseData = data as any;
+      if (responseData && responseData.status === 'ERROR') {
+        const errorMessage = responseData.alert?.message || 'Unknown LegiScan API error';
+        
+        // Create a custom error with additional information
+        const error = new Error(errorMessage);
+        
+        // Add a custom statusCode property to the error
+        // This helps API routes differentiate between types of errors
+        if (errorMessage.includes('Invalid API Key')) {
+          (error as any).statusCode = 401; // Unauthorized
+        } else if (errorMessage.includes('not found') || errorMessage.includes('No such')) {
+          (error as any).statusCode = 404; // Not Found
+        } else if (errorMessage.includes('Rate limit') || errorMessage.includes('Quota exceeded')) {
+          (error as any).statusCode = 429; // Too Many Requests
+        } else {
+          (error as any).statusCode = 400; // Bad Request (default for API errors)
+        }
+        
+        // Add the original response for context
+        (error as any).apiResponse = responseData;
+        
+        // Don't cache error responses
+        throw error;
       }
-    }
+      
+      // Cache the successful result if enabled
+      if (CACHE_ENABLED) {
+        try {
+          await kv.set(cacheKey, data, { ex: ttl });
+        } catch (error) {
+          console.error(`Error caching data for ${cacheKey}:`, error);
+          // Continue even if caching fails
+        }
+      }
 
-    return data;
+      return data;
+    } catch (error) {
+      // Let the error propagate up - we'll handle it at the API route level
+      console.error(`Error fetching data for ${cacheKey}:`, error);
+      throw error;
+    }
   }
 
   /**

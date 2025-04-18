@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ServerLegiScanApi } from '@/lib/legiscan/server';
+import { handleApiError, validationError } from '@/lib/api-error';
 
 /**
  * GET handler for /api/bills/[id]/sponsors
@@ -14,10 +15,7 @@ export async function GET(
     
     // Validate parameter
     if (!billId || isNaN(parseInt(billId))) {
-      return NextResponse.json({
-        error: true,
-        message: 'Invalid bill ID parameter'
-      }, { status: 400 });
+      return validationError('Invalid bill ID parameter', { billId });
     }
     
     // Check for mock parameter
@@ -38,11 +36,8 @@ export async function GET(
       sponsors: sponsors
     });
   } catch (error: any) {
-    console.error(`Error fetching sponsors for bill ${params.id}:`, error);
-    return NextResponse.json({
-      error: true,
-      message: error.message || 'Failed to fetch bill sponsors'
-    }, { status: 500 });
+    // Use centralized error handling with bill-specific context
+    return handleApiError(error, { billId: parseInt(params.id) });
   }
 }
 
