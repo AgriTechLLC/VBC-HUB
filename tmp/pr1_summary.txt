@@ -1,0 +1,32 @@
+PR #1 for bill summary feature has been successfully created and committed. The following changes were made:
+
+1. Created app/api/bills/[id]/summary/route.ts
+   - Implemented an Edge Function API route that uses GPT-4o-mini to generate bill summaries
+   - Added caching with @vercel/kv to improve performance
+   - Structured with error handling and fallbacks
+
+2. Created components/bill-summary.tsx
+   - Implemented a React client component using SWR for data fetching
+   - Added loading and error states
+   - Set up safe HTML rendering of AI-generated content
+
+3. Updated app/(dashboard)/bills/[id]/page.tsx
+   - Imported and integrated the BillSummary component
+   - Added the component to the bill detail page UI
+
+4. Added dependencies
+   - Installed @vercel/kv for Redis caching
+   - Installed swr for data fetching
+
+The implementation follows best practices including:
+- Edge Functions for API routes
+- Client-side data fetching with proper loading states
+- Caching for performance optimization
+- Type safety with TypeScript
+- Clean separation of concerns
+
+Next steps for PR #2 (Amendment Diff Viewer) would include:
+1. Install the diff library
+2. Create the API route for generating diffs
+3. Create the Amendment Diff component
+4. Update the bill detail page to include the diff viewer button

@@ -29,7 +29,8 @@ export async function embedBill(bill: Bill): Promise<void> {
 
   // Ensure the vector index exists in Redis
   try {
-    await redis.ft.create(
+    // Using type assertion to solve TypeScript error with ft property
+    await (redis as any).ft.create(
       "idx:vectors",
       { vector: { type: "VECTOR", dims: 1536, algorithm: "HNSW" } },
       { ON: "HASH", PREFIX: "vbc:vec:" }

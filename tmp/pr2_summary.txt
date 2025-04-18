@@ -1,0 +1,31 @@
+PR #2 for amendment diff viewer feature has been successfully created and committed. The following changes were made:
+
+1. Created app/api/bills/[id]/diff/route.ts
+   - Implemented an Edge Function API route that generates HTML diffs between original bill text and amendments
+   - Added diffWords function from the diff library to compare text
+   - Implemented caching with @vercel/kv
+   - Added error handling and fallbacks
+
+2. Created components/amendment-diff.tsx
+   - Implemented a React client component with dialog modal
+   - Used SWR for data fetching with lazy loading (only loads when dialog is opened)
+   - Added loading and error states
+   - Created proper UI for displaying text diffs with colored highlighting
+
+3. Updated app/(dashboard)/bills/[id]/page.tsx
+   - Added check for amendment availability in bill data
+   - Integrated AmendmentDiff component when amendments are available
+   - Added to the action buttons area
+
+4. Added dependencies
+   - Installed diff library for text comparison
+   - Added @types/diff for TypeScript support
+
+The implementation follows best practices including:
+- Edge Functions for API routes
+- Conditional loading for better performance
+- Proper typing with TypeScript
+- Accessible dialog component
+- Clear visual indication of added/removed content
+
+Both PRs #1 and #2 have now been successfully implemented and committed to the repository. The app now has AI-powered bill summaries and amendment comparison features.

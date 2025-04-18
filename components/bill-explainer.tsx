@@ -1,592 +1,565 @@
 "use client";
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { InfoIcon, LightbulbIcon, Users, Building, FileClock, Scale, HelpCircle } from 'lucide-react';
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Lightbulb, Landmark, Users, Scale, FileText, ExternalLink } from "lucide-react";
 
-export default function BillExplainer() {
-  const [selectedSection, setSelectedSection] = useState('glossary');
-  const [viewingTerm, setViewingTerm] = useState<string | null>(null);
+interface BillExplainerProps {
+  billId: string;
+}
+
+export function BillExplainer({ billId }: BillExplainerProps) {
+  const [activeTab, setActiveTab] = useState("overview");
   
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <InfoIcon className="h-5 w-5 text-primary" />
-          Understanding Blockchain Legislation
-        </CardTitle>
-        <CardDescription>
-          A guide to help you understand blockchain bills and the legislative process
-        </CardDescription>
-      </CardHeader>
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <TabsList className="w-full md:w-auto">
+        <TabsTrigger value="overview" className="flex items-center gap-1.5">
+          <FileText className="h-4 w-4" />
+          Overview
+        </TabsTrigger>
+        <TabsTrigger value="context" className="flex items-center gap-1.5">
+          <Landmark className="h-4 w-4" />
+          Context
+        </TabsTrigger>
+        <TabsTrigger value="glossary" className="flex items-center gap-1.5">
+          <Lightbulb className="h-4 w-4" />
+          Glossary
+        </TabsTrigger>
+        <TabsTrigger value="stakeholders" className="flex items-center gap-1.5">
+          <Users className="h-4 w-4" />
+          Stakeholders
+        </TabsTrigger>
+      </TabsList>
       
-      <Tabs
-        value={selectedSection}
-        onValueChange={setSelectedSection}
-        className="px-6"
-      >
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="glossary">
-            <span className="hidden sm:inline">Blockchain</span> Glossary
-          </TabsTrigger>
-          <TabsTrigger value="process">
-            <span className="hidden sm:inline">Legislative</span> Process
-          </TabsTrigger>
-          <TabsTrigger value="stakeholders">Key Stakeholders</TabsTrigger>
-          <TabsTrigger value="faq">
-            <span className="hidden sm:inline">Common</span> Questions
-          </TabsTrigger>
-        </TabsList>
-        
-        {/* Blockchain Glossary */}
-        <TabsContent value="glossary" className="space-y-4 pt-4">
-          {viewingTerm ? (
-            <TermDetail term={viewingTerm} onBack={() => setViewingTerm(null)} />
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Common terms and concepts in blockchain legislation
+      <TabsContent value="overview" className="mt-6">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">In Plain Language</CardTitle>
+              <CardDescription>
+                What this bill is about, without the legal jargon
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm mb-4">
+                This bill creates rules for companies that hold digital assets (like cryptocurrencies) 
+                for their customers in Virginia. It says these companies must:
               </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {blockchainTerms.map(term => (
-                  <Button
-                    key={term.title}
-                    variant="outline"
-                    className="justify-start h-auto py-3 px-4"
-                    onClick={() => setViewingTerm(term.title)}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">{term.title}</h3>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
-                        {term.shortDescription}
+              <ul className="space-y-2 text-sm ml-6 list-disc">
+                <li>Get a license from the state to operate</li>
+                <li>Have strong security systems to protect customer assets</li>
+                <li>Keep customer assets separate from company funds</li>
+                <li>Have insurance to cover potential losses</li>
+                <li>Undergo regular security audits</li>
+                <li>Clearly disclose risks and fees to customers</li>
+              </ul>
+              <Separator className="my-4" />
+              <p className="text-sm">
+                The goal is to create a safe environment for digital asset businesses to operate 
+                in Virginia while protecting consumers from fraud and security breaches.
+              </p>
+            </CardContent>
+          </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Key Provisions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="text-sm font-medium">
+                      Licensing Requirements
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm">
+                      <p>
+                        Establishes a new licensing category for digital asset businesses. 
+                        Companies must apply through the State Corporation Commission and 
+                        demonstrate financial solvency, security protocols, and compliance plans.
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-2">
+                    <AccordionTrigger className="text-sm font-medium">
+                      Security Standards
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm">
+                      <p>
+                        Requires implementation of industry-standard security measures including 
+                        multi-signature authentication, cold storage for majority of assets, and 
+                        encryption. Annual security audits by independent third parties are mandated.
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-3">
+                    <AccordionTrigger className="text-sm font-medium">
+                      Asset Segregation
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm">
+                      <p>
+                        Customer assets must be held separate from operational funds of the company. 
+                        This ensures customer assets are not at risk if the company faces financial 
+                        difficulties.
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-4">
+                    <AccordionTrigger className="text-sm font-medium">
+                      Insurance Requirements
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm">
+                      <p>
+                        Requires custodians to maintain insurance coverage for theft and security 
+                        breaches. The coverage must be proportional to the value of assets under 
+                        custody, with minimum coverage of $250,000.
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-5">
+                    <AccordionTrigger className="text-sm font-medium">
+                      Disclosure Requirements
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm">
+                      <p>
+                        Mandatory disclosures to customers about risks, fees, and the regulatory 
+                        status of digital assets. The bill prescribes specific language that must 
+                        be included in customer agreements.
+                      </p>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Why It Matters</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <Scale className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Regulatory Clarity</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Creates clear rules for blockchain businesses, allowing them to operate with 
+                      certainty in Virginia rather than in a legal gray area.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Consumer Protection</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Establishes safeguards for consumers using digital asset services, which 
+                      have historically lacked the protections found in traditional finance.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <Landmark className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Economic Development</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Could position Virginia as a hub for blockchain innovation and attract 
+                      technology companies to the state.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="context" className="mt-6">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Legislative Background</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm">
+                  This bill follows several years of blockchain policy development in Virginia:
+                </p>
+                
+                <div className="relative border-l border-muted pl-6 ml-3">
+                  <div className="mb-8 relative">
+                    <div className="absolute -left-[27px] h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-xs text-primary-foreground font-medium">1</span>
+                    </div>
+                    <h3 className="text-sm font-medium">2018: Joint Commission Study</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      The Virginia Joint Commission on Technology and Science conducted a study on 
+                      blockchain technology and its potential applications in government.
+                    </p>
+                  </div>
+                  
+                  <div className="mb-8 relative">
+                    <div className="absolute -left-[27px] h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-xs text-primary-foreground font-medium">2</span>
+                    </div>
+                    <h3 className="text-sm font-medium">2020: HB 1062 - Electronic Records</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Amended the Uniform Electronic Transactions Act to include blockchain technology 
+                      as a valid means of record-keeping for electronic records and signatures.
+                    </p>
+                  </div>
+                  
+                  <div className="mb-8 relative">
+                    <div className="absolute -left-[27px] h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-xs text-primary-foreground font-medium">3</span>
+                    </div>
+                    <h3 className="text-sm font-medium">2022: Blockchain Advisory Workgroup</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Governor established a workgroup of industry experts and policymakers to develop 
+                      recommendations for blockchain policy in Virginia.
+                    </p>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="absolute -left-[27px] h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-xs text-primary-foreground font-medium">4</span>
+                    </div>
+                    <h3 className="text-sm font-medium">2023: SB II42 - Digital Asset Study</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Directed the State Corporation Commission to conduct a study on the status of 
+                      digital asset regulation in Virginia and potential frameworks.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">National Context</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm mb-2">
+                  This bill is part of a broader trend of state-level blockchain regulation in the absence 
+                  of comprehensive federal frameworks:
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded-md p-4">
+                    <h3 className="text-sm font-medium mb-2">Wyoming's Approach</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Wyoming has led with the most comprehensive blockchain legislation in the U.S., 
+                      including special purpose depository institutions (SPDIs) for digital assets.
+                    </p>
+                  </div>
+                  
+                  <div className="border rounded-md p-4">
+                    <h3 className="text-sm font-medium mb-2">New York's BitLicense</h3>
+                    <p className="text-sm text-muted-foreground">
+                      New York implemented the BitLicense in 2015, a strict regulatory regime that 
+                      has been criticized by some for limiting innovation.
+                    </p>
+                  </div>
+                  
+                  <div className="border rounded-md p-4">
+                    <h3 className="text-sm font-medium mb-2">Texas Guidance</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Texas has provided regulatory guidance allowing banks to custody digital assets 
+                      while maintaining a generally business-friendly approach.
+                    </p>
+                  </div>
+                  
+                  <div className="border rounded-md p-4">
+                    <h3 className="text-sm font-medium mb-2">Federal Uncertainty</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Congress has yet to pass comprehensive crypto legislation, leaving states 
+                      to fill the regulatory gap while federal agencies like the SEC and CFTC 
+                      compete for jurisdiction.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="text-sm text-muted-foreground mt-2">
+                  Virginia's approach with this bill appears to navigate a middle path between the 
+                  strict regulatory approach of New York and the more permissive environment of Wyoming.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="glossary" className="mt-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Blockchain Terms</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium">Blockchain</h3>
+                      <p className="text-sm text-muted-foreground">
+                        A digital ledger of transactions maintained by a network of computers that is 
+                        transparent, secure, and resistant to modification.
                       </p>
                     </div>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-        
-        {/* Legislative Process */}
-        <TabsContent value="process" className="pt-4">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground mb-6">
-              How a blockchain bill becomes law in Virginia
-            </p>
-            
-            <div className="relative">
-              {/* Timeline line */}
-              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-muted-foreground/20" />
-              
-              {/* Timeline steps */}
-              <div className="space-y-8 relative pl-12">
-                {legislativeSteps.map((step, index) => (
-                  <div key={index} className="relative">
-                    {/* Timeline node */}
-                    <div className="absolute -left-12 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
-                      {index + 1}
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Digital Asset</h3>
+                      <p className="text-sm text-muted-foreground">
+                        A digital representation of value that functions as a medium of exchange, 
+                        unit of account, or store of value, but does not have legal tender status.
+                      </p>
                     </div>
-                    
-                    <h3 className="font-medium text-base">{step.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{step.description}</p>
-                    
-                    {step.insights && (
-                      <div className="mt-2 bg-muted/50 rounded-md p-3 text-sm flex items-start gap-2">
-                        <LightbulbIcon className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <p>{step.insights}</p>
-                      </div>
-                    )}
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Cryptocurrency</h3>
+                      <p className="text-sm text-muted-foreground">
+                        A type of digital asset that uses cryptography for security and operates on 
+                        a decentralized network, typically a blockchain.
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Smart Contract</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Self-executing code deployed on a blockchain that automatically enforces the 
+                        terms of an agreement when predetermined conditions are met.
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Custody</h3>
+                      <p className="text-sm text-muted-foreground">
+                        In the context of digital assets, the secure storage and management of 
+                        private keys that control access to the assets.
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-        </TabsContent>
-        
-        {/* Key Stakeholders */}
-        <TabsContent value="stakeholders" className="pt-4">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground mb-6">
-              Important groups and their roles in blockchain policy
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StakeholderCard
-                title="Government Entities"
-                icon={<Building className="h-5 w-5" />}
-                stakeholders={[
-                  {
-                    name: "Virginia Department of Financial Institutions",
-                    role: "Oversees financial regulations affecting blockchain and digital assets"
-                  },
-                  {
-                    name: "Virginia Innovation Partnership Corporation",
-                    role: "Promotes technology investment and innovation in Virginia"
-                  },
-                  {
-                    name: "State Corporation Commission",
-                    role: "Regulates business entities and certain financial services"
-                  },
-                  {
-                    name: "Attorney General's Office",
-                    role: "Provides legal opinions on regulations and enforcement"
-                  }
-                ]}
-              />
-              
-              <StakeholderCard
-                title="Industry & Advocacy"
-                icon={<Users className="h-5 w-5" />}
-                stakeholders={[
-                  {
-                    name: "Virginia Blockchain Council",
-                    role: "Educates and advocates for responsible blockchain policies"
-                  },
-                  {
-                    name: "Chamber of Digital Commerce",
-                    role: "National trade association for the blockchain industry"
-                  },
-                  {
-                    name: "Virginia Financial Innovation Coalition",
-                    role: "Promotes policies supporting financial technology growth"
-                  },
-                  {
-                    name: "Consumer Protection Groups",
-                    role: "Advocate for safeguards in new technologies"
-                  }
-                ]}
-              />
-              
-              <StakeholderCard
-                title="Legal Framework"
-                icon={<Scale className="h-5 w-5" />}
-                stakeholders={[
-                  {
-                    name: "Uniform Law Commission",
-                    role: "Develops model legislation like the URVCBA"
-                  },
-                  {
-                    name: "Virginia Bar Association",
-                    role: "Provides legal expertise on emerging technology issues"
-                  },
-                  {
-                    name: "Federal Regulators",
-                    role: "SEC, FinCEN, and other agencies with overlapping jurisdiction"
-                  },
-                  {
-                    name: "Virginia Court System",
-                    role: "Interprets legislation in case of disputes"
-                  }
-                ]}
-              />
-              
-              <StakeholderCard
-                title="Legislative Process"
-                icon={<FileClock className="h-5 w-5" />}
-                stakeholders={[
-                  {
-                    name: "Bill Sponsors",
-                    role: "Legislators who introduce and champion blockchain bills"
-                  },
-                  {
-                    name: "Committee Chairs",
-                    role: "Control hearing schedules and bill amendments"
-                  },
-                  {
-                    name: "Legislative Aides",
-                    role: "Staff who research issues and draft bill language"
-                  },
-                  {
-                    name: "Division of Legislative Services",
-                    role: "Provides technical assistance in drafting legislation"
-                  }
-                ]}
-              />
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Common Questions */}
-        <TabsContent value="faq" className="pt-4">
-          <div className="space-y-6">
-            <p className="text-sm text-muted-foreground">
-              Answers to frequently asked questions about blockchain legislation
-            </p>
             
             <div className="space-y-4">
-              {faqItems.map((item, index) => (
-                <div key={index} className="space-y-2">
-                  <h3 className="font-medium flex items-center gap-2">
-                    <HelpCircle className="h-4 w-4 text-primary" />
-                    {item.question}
-                  </h3>
-                  <p className="text-sm text-muted-foreground pl-6">{item.answer}</p>
-                  
-                  {index < faqItems.length - 1 && <Separator className="my-4" />}
-                </div>
-              ))}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Technical & Regulatory Terms</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium">Cold Storage</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Keeping digital assets offline in hardware wallets or other physical media 
+                        to protect them from online threats.
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Multi-signature Authentication</h3>
+                      <p className="text-sm text-muted-foreground">
+                        A security feature requiring multiple private keys to authorize a transaction, 
+                        similar to requiring multiple signatures on a check.
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Private Key</h3>
+                      <p className="text-sm text-muted-foreground">
+                        A secret alphanumeric code that allows access to digital assets. Whoever 
+                        has the private key effectively controls the assets.
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Asset Segregation</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Keeping customer digital assets separate from a company's operational funds, 
+                        similar to how a bank must segregate customer deposits.
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium">Security Audit</h3>
+                      <p className="text-sm text-muted-foreground">
+                        An assessment of a company's security measures by an independent third party 
+                        to identify vulnerabilities and ensure compliance with standards.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
-      
-      <CardFooter className="flex justify-between items-center border-t mt-6 px-6 py-4 bg-muted/20">
-        <p className="text-xs text-muted-foreground">
-          Explainer provided by Virginia Blockchain Council
-        </p>
-        <Button variant="ghost" size="sm" asChild>
-          <a href="/education" className="text-xs">View Full Education Hub</a>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
-
-// Component for detailed term view
-function TermDetail({ term, onBack }: { term: string; onBack: () => void }) {
-  const termData = blockchainTerms.find(t => t.term === term) || 
-                   blockchainTerms.find(t => t.title === term);
-  
-  if (!termData) return null;
-  
-  return (
-    <div className="space-y-4">
-      <Button variant="ghost" onClick={onBack} className="mb-2 -ml-2">
-        ← Back to Glossary
-      </Button>
-      
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-bold">{termData.title}</h2>
-          {termData.tags && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {termData.tags.map(tag => (
-                <Badge key={tag} variant="secondary">{tag}</Badge>
-              ))}
-            </div>
-          )}
+          
+          <div className="flex justify-center">
+            <Button variant="outline" className="flex items-center gap-1.5">
+              <ExternalLink className="h-4 w-4" />
+              View Complete Blockchain Glossary
+            </Button>
+          </div>
         </div>
-        
-        <p>{termData.description}</p>
-        
-        {termData.legislativeContext && (
-          <>
-            <h3 className="font-medium text-lg mt-4">Legislative Context</h3>
-            <p className="text-muted-foreground">{termData.legislativeContext}</p>
-          </>
-        )}
-        
-        {termData.examples && (
-          <>
-            <h3 className="font-medium text-lg mt-4">Examples in Legislation</h3>
-            <ul className="list-disc pl-5 space-y-2">
-              {termData.examples.map((example, i) => (
-                <li key={i} className="text-muted-foreground">{example}</li>
-              ))}
-            </ul>
-          </>
-        )}
-        
-        {termData.relatedTerms && (
-          <div className="mt-6 pt-4 border-t">
-            <h3 className="font-medium mb-2">Related Terms</h3>
-            <div className="flex flex-wrap gap-2">
-              {termData.relatedTerms.map(relatedTerm => (
-                <Button 
-                  key={relatedTerm} 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    const newTerm = blockchainTerms.find(t => 
-                      t.title === relatedTerm || t.term === relatedTerm
-                    )?.title;
-                    if (newTerm) onBack(); // Go back to list first to avoid animation issues
-                    setTimeout(() => {
-                      if (newTerm) setViewingTerm(newTerm);
-                    }, 0);
-                  }}
-                >
-                  {relatedTerm}
-                </Button>
-              ))}
-            </div>
+      </TabsContent>
+      
+      <TabsContent value="stakeholders" className="mt-6">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StakeholderCard
+              name="Digital Asset Businesses"
+              role="Primary Regulated Entity"
+              impact="High"
+              avatar="/blockchain-company.png"
+              description="Companies offering custody, exchange, or other digital asset services will need to obtain licenses and comply with new requirements."
+            />
+            
+            <StakeholderCard
+              name="Financial Institutions"
+              role="Potential Market Entrant"
+              impact="Medium"
+              avatar="/bank.png"
+              description="Traditional banks may enter the digital asset space under the new regulatory framework if they choose to expand their offerings."
+            />
+            
+            <StakeholderCard
+              name="State Corporation Commission"
+              role="Regulatory Authority"
+              impact="High"
+              avatar="/government.png"
+              description="Will be responsible for issuing licenses, conducting examinations, and enforcing compliance with the new regulations."
+            />
           </div>
-        )}
-      </div>
-    </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StakeholderCard
+              name="Consumers"
+              role="End Users"
+              impact="Medium"
+              avatar="/consumer.png"
+              description="Will benefit from increased protections when using digital asset services in Virginia, but may see some services become unavailable if providers cannot meet requirements."
+            />
+            
+            <StakeholderCard
+              name="Technology Companies"
+              role="Service Provider"
+              impact="Medium"
+              avatar="/tech-company.png"
+              description="Firms providing security, compliance, and technical infrastructure to digital asset businesses may see increased demand for their services."
+            />
+            
+            <StakeholderCard
+              name="Legal & Compliance Professionals"
+              role="Advisory Services"
+              impact="Medium"
+              avatar="/lawyer.png"
+              description="Will advise businesses on compliance with the new framework and help navigate the licensing process."
+            />
+          </div>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Points of Contention</CardTitle>
+              <CardDescription>Areas where stakeholders may disagree</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="border rounded-md p-4">
+                  <h3 className="text-sm font-medium flex items-center gap-2 mb-2">
+                    Balance of Innovation vs. Regulation
+                    <Badge variant="outline">Contested</Badge>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Industry advocates argue some requirements may be too burdensome for startups, 
+                    while consumer protection groups contend the safeguards are necessary to prevent 
+                    fraud and protect users.
+                  </p>
+                </div>
+                
+                <div className="border rounded-md p-4">
+                  <h3 className="text-sm font-medium flex items-center gap-2 mb-2">
+                    Insurance Requirements
+                    <Badge variant="outline">Contested</Badge>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Some argue the insurance requirements are difficult to meet given the limited 
+                    availability of digital asset insurance products in the current market.
+                  </p>
+                </div>
+                
+                <div className="border rounded-md p-4">
+                  <h3 className="text-sm font-medium flex items-center gap-2 mb-2">
+                    State vs. Federal Regulation
+                    <Badge variant="outline">Contested</Badge>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Some stakeholders prefer waiting for a federal framework to avoid a patchwork 
+                    of state regulations, while others support state action in the absence of 
+                    federal clarity.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
 
-// Component for stakeholder cards
-function StakeholderCard({ 
-  title, 
-  icon, 
-  stakeholders 
-}: { 
-  title: string; 
-  icon: React.ReactNode; 
-  stakeholders: { name: string; role: string }[] 
-}) {
+interface StakeholderCardProps {
+  name: string;
+  role: string;
+  impact: string;
+  avatar: string;
+  description: string;
+}
+
+function StakeholderCard({ name, role, impact, avatar, description }: StakeholderCardProps) {
+  // Use a fallback for the avatar
+  const initials = name.split(' ').map(n => n[0]).join('');
+  
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul className="space-y-3">
-          {stakeholders.map(item => (
-            <li key={item.name} className="text-sm">
-              <span className="font-medium">{item.name}</span>
-              <p className="text-xs text-muted-foreground">{item.role}</p>
-            </li>
-          ))}
-        </ul>
+      <CardContent className="pt-6">
+        <div className="flex flex-col items-center text-center mb-4">
+          <Avatar className="h-16 w-16 mb-2">
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <h3 className="font-medium">{name}</h3>
+          <p className="text-sm text-muted-foreground">{role}</p>
+          <Badge 
+            variant="outline" 
+            className={`mt-1 ${
+              impact === 'High' ? 'bg-primary/10' : 
+              impact === 'Medium' ? 'bg-amber-500/10' : 
+              'bg-blue-500/10'
+            }`}
+          >
+            {impact} Impact
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground text-center">
+          {description}
+        </p>
       </CardContent>
     </Card>
   );
 }
-
-// Legislative process steps
-const legislativeSteps = [
-  {
-    title: "Bill Introduction",
-    description: "A legislator introduces a blockchain-related bill, which is assigned to the appropriate committee, usually Commerce & Labor for regulatory matters or Science & Technology for innovation policies.",
-    insights: "Blockchain bills are often introduced by legislators with technology backgrounds or those representing districts with technology companies."
-  },
-  {
-    title: "Committee Consideration",
-    description: "The committee holds hearings where stakeholders can testify about the bill's potential impact. For blockchain legislation, this often involves expert testimony from industry, regulators, and consumer advocates.",
-    insights: "Committee hearings for blockchain bills frequently include explanations of technical concepts for legislators who may be unfamiliar with the technology."
-  },
-  {
-    title: "Amendments and Markup",
-    description: "The committee may amend the bill to address concerns or improve its language, particularly important for blockchain bills where terminology precision is crucial.",
-    insights: "Many blockchain bills undergo significant amendments to clarify definitions and ensure regulatory clarity without stifling innovation."
-  },
-  {
-    title: "Floor Debate and Vote",
-    description: "If approved by committee, the bill moves to the chamber floor (House or Senate) for debate and a vote by all members.",
-    insights: "Floor debates on blockchain bills often focus on balancing innovation with consumer protection and financial stability concerns."
-  },
-  {
-    title: "Crossing Over",
-    description: "If passed by one chamber, the bill moves to the other chamber and repeats the committee and floor process.",
-    insights: "Bills that pass one chamber often face different concerns in the other, which can lead to conflicting versions that must be reconciled."
-  },
-  {
-    title: "Conference Committee (if needed)",
-    description: "If the House and Senate pass different versions, a conference committee resolves the differences.",
-    insights: "Technical aspects of blockchain bills sometimes need reconciliation when different regulatory approaches are taken by each chamber."
-  },
-  {
-    title: "Governor's Action",
-    description: "The governor may sign the bill into law, veto it, or allow it to become law without signature.",
-    insights: "Governors often consider the economic development potential of blockchain-friendly legislation against consumer protection concerns."
-  },
-  {
-    title: "Implementation",
-    description: "Once enacted, regulatory agencies typically develop specific rules and guidance for implementation.",
-    insights: "The implementation phase for blockchain laws often includes stakeholder working groups to ensure regulations are technically feasible and effective."
-  }
-];
-
-// Common blockchain terms
-const blockchainTerms = [
-  {
-    title: "Blockchain",
-    term: "blockchain",
-    shortDescription: "A digital ledger recording transactions across multiple computers",
-    description: "A blockchain is a distributed digital ledger that records transactions across many computers so that any involved record cannot be altered retroactively without altering all subsequent blocks. This technology enables secure, transparent, and tamper-resistant record-keeping.",
-    tags: ["Core Technology", "Infrastructure"],
-    legislativeContext: "In legislation, blockchain is often defined technically to distinguish it from other database technologies, emphasizing its distributed nature and cryptographic security features.",
-    examples: [
-      "Virginia's SB 1326 defined blockchain as 'a distributed ledger technology that uses a distributed, decentralized, shared, and replicated ledger, which may be public or private, permissioned or permissionless'",
-      "Bills often specify that blockchain records may serve as legal records if they meet certain requirements"
-    ],
-    relatedTerms: ["Smart Contracts", "Distributed Ledger", "Consensus Mechanism"]
-  },
-  {
-    title: "Smart Contracts",
-    term: "smart_contracts",
-    shortDescription: "Self-executing code that automatically implements agreement terms",
-    description: "Smart contracts are self-executing programs stored on a blockchain that run when predetermined conditions are met. They automate agreement execution so that all participants can be immediately certain of the outcome without an intermediary's involvement.",
-    tags: ["Technology Application", "Legal"],
-    legislativeContext: "Legislation often addresses whether smart contracts can satisfy legal requirements for contracts, including provisions for electronic signatures and records.",
-    examples: [
-      "Virginia Code § 59.1-575 recognizes smart contracts in electronic transactions and specifies that they cannot be denied legal effect solely because they are executed through a blockchain",
-      "Regulatory frameworks may address liability issues when smart contracts execute unintended consequences"
-    ],
-    relatedTerms: ["Blockchain", "Digital Signature", "Tokenization"]
-  },
-  {
-    title: "Digital Asset",
-    term: "digital_asset",
-    shortDescription: "An electronic record with value, including cryptocurrencies",
-    description: "Digital assets are electronic records in which an individual has a right or interest. In blockchain legislation, this term typically encompasses cryptocurrencies, security tokens, utility tokens, and other blockchain-based assets.",
-    tags: ["Economic", "Legal Definition"],
-    legislativeContext: "How digital assets are defined determines which regulatory frameworks apply to them, including securities laws, money transmission regulations, or commodity rules.",
-    examples: [
-      "The Uniform Law Commission's model legislation defines digital assets as 'an electronic record that has value'",
-      "Some state legislation distinguishes between different types of digital assets based on their function (payment, investment, utility)"
-    ],
-    relatedTerms: ["Cryptocurrency", "Tokenization", "Securities Token"]
-  },
-  {
-    title: "Cryptocurrency",
-    term: "cryptocurrency",
-    shortDescription: "Digital currencies using cryptography for security",
-    description: "A digital or virtual currency that uses cryptography for security and operates on a blockchain. Unlike traditional currencies, cryptocurrencies generally operate without a central authority, such as a government or bank.",
-    tags: ["Financial", "Currency"],
-    legislativeContext: "Legislation must determine if cryptocurrencies are treated as currencies, commodities, securities, or some other asset class for regulatory and tax purposes.",
-    examples: [
-      "Bills may explicitly include or exclude cryptocurrencies from definitions of 'money' or 'legal tender'",
-      "State regulations often focus on cryptocurrency exchanges and custody services to protect consumers"
-    ],
-    relatedTerms: ["Digital Asset", "Virtual Currency", "Stablecoin"]
-  },
-  {
-    title: "Virtual Currency Business Activity",
-    term: "vcba",
-    shortDescription: "Commercial activities involving virtual currencies",
-    description: "Commercial activities related to virtual currencies including exchange, transfer, storage, or issuance services. This term is commonly used in regulatory frameworks to define which businesses need to comply with specific regulations.",
-    tags: ["Regulatory", "Business"],
-    legislativeContext: "Defines which companies must obtain licenses or register with state authorities to conduct blockchain-related financial activities.",
-    examples: [
-      "The Uniform Regulation of Virtual-Currency Businesses Act (URVCBA) defines five types of activities that constitute virtual currency business activity",
-      "Licensing requirements often include minimum capital reserves, cybersecurity standards, and consumer protection measures"
-    ],
-    relatedTerms: ["Money Transmission", "Custody", "Exchange"]
-  },
-  {
-    title: "Distributed Ledger",
-    term: "distributed_ledger",
-    shortDescription: "A consensus of replicated, shared, and synchronized data",
-    description: "A consensus of replicated, shared, and synchronized digital data geographically spread across multiple sites, institutions, or countries. Blockchain is one type of distributed ledger technology.",
-    tags: ["Core Technology", "Infrastructure"],
-    legislativeContext: "Some legislation uses this broader term instead of blockchain to remain technologically neutral and avoid becoming quickly outdated.",
-    examples: [
-      "Regulatory sandboxes may apply to innovations using distributed ledger technology broadly, not just blockchain specifically",
-      "Legislation may reference distributed ledger technology for government record-keeping or identity verification systems"
-    ],
-    relatedTerms: ["Blockchain", "Consensus Mechanism", "Peer-to-Peer Network"]
-  },
-  {
-    title: "Tokenization",
-    term: "tokenization",
-    shortDescription: "Converting rights to an asset into a digital token",
-    description: "The process of converting rights to an asset into a digital token on a blockchain. This can apply to real estate, artwork, securities, or virtually any asset with value.",
-    tags: ["Business Application", "Economic"],
-    legislativeContext: "Legislation addresses how ownership records maintained on blockchains relate to traditional property and securities laws.",
-    examples: [
-      "Some states have passed laws recognizing blockchain-based records for property titles or corporate shares",
-      "Securities regulations may specify when tokenized assets are considered investment contracts"
-    ],
-    relatedTerms: ["Security Token", "Non-Fungible Token (NFT)", "Digital Asset"]
-  },
-  {
-    title: "Regulatory Sandbox",
-    term: "regulatory_sandbox",
-    shortDescription: "Program allowing limited testing of innovative products",
-    description: "A framework set up by a regulator that allows businesses to test innovative products, services, or business models in a controlled environment with regulatory oversight but with temporary exemption from some regulatory requirements.",
-    tags: ["Regulatory", "Innovation"],
-    legislativeContext: "Legislation establishing regulatory sandboxes aims to foster innovation while maintaining consumer protection and gathering data on new technologies.",
-    examples: [
-      "Several states have enacted blockchain sandbox legislation modeled after Arizona's first-in-nation approach",
-      "Sandbox programs typically include reporting requirements and consumer protection provisions"
-    ],
-    relatedTerms: ["Innovation Zone", "Limited Regulatory Exemption", "FinTech"]
-  },
-  {
-    title: "Stablecoin",
-    term: "stablecoin",
-    shortDescription: "Cryptocurrencies designed to minimize price volatility",
-    description: "A type of cryptocurrency designed to minimize price volatility, often by pegging its value to a currency or commodity, or through algorithmic mechanisms.",
-    tags: ["Financial", "Currency"],
-    legislativeContext: "Legislation increasingly focuses on stablecoin issuance, reserves, and redemption guarantees as these tokens gain broader use in payments and commerce.",
-    examples: [
-      "Recent bills have proposed requirements for stablecoin issuers to maintain 1:1 reserves of high-quality liquid assets",
-      "Some regulations differentiate between fiat-backed, crypto-backed, and algorithmic stablecoins"
-    ],
-    relatedTerms: ["Cryptocurrency", "Digital Dollar", "Reserve Requirements"]
-  },
-  {
-    title: "Digital Identity",
-    term: "digital_identity",
-    shortDescription: "Electronic verification of an individual's identity",
-    description: "Information used by computer systems to represent an external entity (person, organization, application, or device). Blockchain-based digital identity solutions can provide secure, portable, and user-controlled identification.",
-    tags: ["Identity", "Privacy", "Security"],
-    legislativeContext: "Legislation addresses how blockchain-based identity systems can meet legal requirements for identity verification while protecting privacy.",
-    examples: [
-      "Some states have initiated blockchain pilots for digital driver's licenses or professional credentials",
-      "Legislation may specify standards for self-sovereign identity systems that give users control over their data"
-    ],
-    relatedTerms: ["Self-Sovereign Identity", "Verifiable Credentials", "Zero-Knowledge Proof"]
-  },
-  {
-    title: "Decentralized Finance (DeFi)",
-    term: "defi",
-    shortDescription: "Financial services using blockchain without intermediaries",
-    description: "Financial services and applications built on blockchain networks that operate without traditional financial intermediaries like banks or brokerages. DeFi applications aim to recreate traditional financial systems (lending, borrowing, trading) in a decentralized architecture.",
-    tags: ["Financial", "Innovation"],
-    legislativeContext: "Legislation grapples with how existing financial regulations apply when there is no central operator or intermediary to regulate.",
-    examples: [
-      "Some bills address whether DeFi protocols themselves can be considered money transmitters or exchange operators",
-      "Regulatory clarity on smart contract-based lending and interest-bearing accounts is emerging in various states"
-    ],
-    relatedTerms: ["Peer-to-Peer Lending", "Decentralized Exchange (DEX)", "Yield Farming"]
-  },
-  {
-    title: "Non-Fungible Token (NFT)",
-    term: "nft",
-    shortDescription: "Unique blockchain token representing ownership of an item",
-    description: "A unique digital token on a blockchain that represents ownership of a specific item, such as digital art, collectibles, or real-world assets. Unlike cryptocurrencies, NFTs are not interchangeable with each other.",
-    tags: ["Digital Asset", "Collectibles", "Art"],
-    legislativeContext: "Legislation addresses intellectual property rights, royalty payments, and consumer protection in NFT markets.",
-    examples: [
-      "Tax legislation clarifies whether NFT sales are subject to sales tax or capital gains tax",
-      "Some states have addressed the application of consumer protection laws to NFT marketplaces"
-    ],
-    relatedTerms: ["Digital Art", "Intellectual Property", "Tokenization"]
-  }
-];
-
-// FAQ items
-const faqItems = [
-  {
-    question: "Why do we need specific laws for blockchain?",
-    answer: "Blockchain technology creates novel situations that don't fit neatly into existing legal frameworks. For example, when a smart contract automatically executes, who is responsible if something goes wrong? When digital assets cross borders instantly, which jurisdiction's laws apply? Blockchain-specific legislation provides clarity for businesses, consumers, and courts on these new questions."
-  },
-  {
-    question: "What's the difference between federal and state blockchain regulation?",
-    answer: "Federal regulations typically focus on securities laws, anti-money laundering, taxation, and consumer protection at a national level. State laws address areas like money transmission, business licensing, digital identity, and creating innovation-friendly environments. Both levels of regulation interact, and sometimes federal law preempts state law when there's a conflict."
-  },
-  {
-    question: "How do blockchain laws affect businesses in Virginia?",
-    answer: "Blockchain laws determine whether businesses need specific licenses to operate, what consumer protection measures they must implement, how their activities are taxed, and what records they must maintain. Clear regulations reduce legal uncertainty, making Virginia more attractive for blockchain businesses while protecting consumers and the financial system."
-  },
-  {
-    question: "What is a regulatory sandbox and why is it important?",
-    answer: "A regulatory sandbox allows businesses to test innovative blockchain products in a controlled environment with temporary exemptions from certain regulations. This helps companies innovate while giving regulators insight into new technologies. Sandboxes have proven effective in fostering blockchain innovation while maintaining appropriate oversight."
-  },
-  {
-    question: "How can blockchain be used in government applications?",
-    answer: "Government applications include secure identity management, transparent record-keeping for property titles and business registrations, supply chain tracking for government purchases, secure voting systems, and efficient distribution of benefits. Legislation often authorizes pilot programs to test these applications before wider implementation."
-  },
-  {
-    question: "What is the 'Uniform Regulation of Virtual-Currency Businesses Act'?",
-    answer: "The URVCBA is a model law created by the Uniform Law Commission to provide consistent regulation of businesses engaged in virtual currency activities across different states. It creates a three-tier system based on transaction volume, requirements for licensure, consumer protections, and cybersecurity standards. Several states have used this model as a starting point for their own legislation."
-  },
-  {
-    question: "How do I participate in the legislative process for blockchain bills?",
-    answer: "You can participate by contacting your representatives, submitting written comments to committees considering blockchain bills, testifying at public hearings, joining industry or advocacy organizations that engage with legislators, and participating in regulatory comment periods when agencies implement new rules. The Virginia Blockchain Council actively facilitates stakeholder engagement in the legislative process."
-  }
-];

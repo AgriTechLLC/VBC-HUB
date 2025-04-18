@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { simplifyChambername } from "@/lib/legiscan-utils";
 
 // Define the interface for vote data
 interface VoteData {
@@ -119,7 +120,7 @@ export default function VoteDonut({ billId, className }: VoteDonutProps) {
       <CardHeader>
         <CardTitle>Vote Results</CardTitle>
         <CardDescription>
-          {data.chamber} • {getFormattedDate()}
+          {simplifyChambername(data.chamber)} • {getFormattedDate()}
         </CardDescription>
       </CardHeader>
       <CardContent>

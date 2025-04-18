@@ -1,5 +1,5 @@
 import { format, parseISO, isValid, compareAsc } from 'date-fns';
-import { getBillStatusDescription } from './legiscan';
+import { getBillStatusDescription } from './legiscan-redis';
 
 // Timeline event type for bills
 export interface BillTimelineEvent {

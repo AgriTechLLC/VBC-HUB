@@ -9,7 +9,7 @@ import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/li
 import BillSummary from '@/components/bill-summary';
 import BillTimeline from '@/components/bill-timeline';
 import VoteDonut from '@/components/vote-donut';
-import AmendmentDiff from '@/components/amendment-diff';
+import { AmendmentDiff } from '@/components/amendment-diff';
 
 // Generate metadata for the page
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {

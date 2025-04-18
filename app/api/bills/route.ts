@@ -18,7 +18,6 @@ interface BillData {
   bill_number: string;
   title: string;
   status_id: number;
-  status: string;
   progress: number;
   last_action: string;
   last_action_date: string;
@@ -37,7 +36,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const useMock = url.searchParams.get('mock') === 'true';
     
-    if (useMock || (process.env.NODE_ENV === 'development' && !process.env.USE_REAL_API)) {
+    if (useMock || (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_USE_REAL_API)) {
       console.log('[API] Using mock data');
       return getMockBills();
     }
@@ -108,8 +107,7 @@ export async function refreshBills() {
         bill_number: bill.bill_number,
         title: bill.title,
         status_id: bill.status,
-        status: bill.status,  // Status description will be client-formatted
-        progress: 0,  // Progress will be client-calculated
+        progress: bill.progress || 0,  // Use progress if provided or calculate it client-side
         last_action: bill.history && bill.history.length > 0 ? bill.history[0].action : 'No action',
         last_action_date: bill.history && bill.history.length > 0 ? bill.history[0].date : new Date().toISOString().split('T')[0],
         url: bill.state_link,
@@ -118,7 +116,7 @@ export async function refreshBills() {
       };
       
       // Generate embeddings for bill text (if OpenAI API is configured)
-      if (process.env.USE_REAL_API === 'true' && process.env.OPENAI_API_KEY) {
+      if (process.env.NEXT_PUBLIC_USE_REAL_API === 'true' && process.env.OPENAI_API_KEY) {
         try {
           // Get full bill text (when available) for embedding
           if (bill.texts && bill.texts.length > 0) {
@@ -172,8 +170,7 @@ function getMockBills() {
       bill_id: 1234567,
       bill_number: "HB1234",
       title: "Digital Asset Trading Regulation",
-      status_id: 7,
-      status: "Committee",
+      status_id: 7, // Committee
       progress: 30,
       last_action: "Referred to Commerce Committee",
       last_action_date: "2024-03-15",
@@ -185,8 +182,7 @@ function getMockBills() {
       bill_id: 5678901,
       bill_number: "SB5678",
       title: "Blockchain Technology Innovation Act",
-      status_id: 4,
-      status: "Passed",
+      status_id: 4, // Passed
       progress: 100,
       last_action: "Signed by Governor",
       last_action_date: "2024-03-10",
@@ -198,8 +194,7 @@ function getMockBills() {
       bill_id: 9012345,
       bill_number: "HB4567",
       title: "Cryptocurrency Taxation Standards",
-      status_id: 8,
-      status: "Referred",
+      status_id: 8, // Referred
       progress: 20,
       last_action: "Referred to Finance Committee",
       last_action_date: "2024-03-05",
@@ -211,8 +206,7 @@ function getMockBills() {
       bill_id: 3456789,
       bill_number: "SB7890",
       title: "Digital Identity Verification Act",
-      status_id: 10,
-      status: "Amended",
+      status_id: 10, // Amended
       progress: 60,
       last_action: "House amendments agreed to by Senate",
       last_action_date: "2024-04-12",

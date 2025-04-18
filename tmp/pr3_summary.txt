@@ -1,0 +1,26 @@
+PR #3 for bill timeline feature has been successfully created and committed. The following changes were made:
+
+1. Created lib/timeline-utils.ts
+   - Implemented utility functions for extracting bill timeline events
+   - Added formatting functions for recharts visualization
+   - Created event type prediction and color mapping
+   - Added support for both past events and future predictions
+
+2. Created components/bill-timeline.tsx
+   - Implemented an interactive Recharts visualization
+   - Added custom styling for event types with color coding
+   - Included hover tooltips for event details
+   - Added a reference line for current date
+   - Created legend for different event types
+
+3. Updated app/(dashboard)/bills/[id]/page.tsx
+   - Added BillTimeline component to the bill detail page
+   - Positioned timeline below the summary section
+
+The implementation provides users with a visual representation of a bill's journey through the legislative process, including:
+- Past events with actual dates
+- Predicted future events based on typical legislative timelines
+- Color-coded event types (introduction, committee, votes, etc.)
+- Interactive tooltips showing event details
+
+This feature enhances the user's ability to understand a bill's progress and anticipate future milestones.

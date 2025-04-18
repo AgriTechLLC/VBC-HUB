@@ -7,7 +7,7 @@ import { LegislationTracker } from '@/components/legislation-tracker';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background">
+    <>
       {/* Hero Section */}
       <section className="relative bg-primary text-primary-foreground py-20">
         <div className="container mx-auto px-4">
@@ -131,6 +131,6 @@ export default function Home() {
           </Card>
         </div>
       </div>
-    </main>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, FileText, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan-redis';
+import { formatBillNumber, getStatusColor, getBillStatusDescription, calculateProgress } from '@/lib/legiscan';
 import { debounce } from '@/lib/utils';
 
 interface Bill {
@@ -14,7 +14,6 @@ interface Bill {
   bill_number: string;
   title: string;
   status_id: number;
-  status: string;
   progress: number;
   last_action: string;
   last_action_date: string;
@@ -48,9 +47,9 @@ export function LegislationTracker() {
         // Determine if we're using mock data
         // Mock data if we're in development mode and either:
         // 1. The data is not cached (which means it's fresh mock data)
-        // 2. USE_REAL_API is false (which means we're in mock mode)
+        // 2. NEXT_PUBLIC_USE_REAL_API is false (which means we're in mock mode)
         const isMock = process.env.NODE_ENV === 'development' && 
-                      (data.cached === false || process.env.USE_REAL_API !== 'true');
+                      (data.cached === false || process.env.NEXT_PUBLIC_USE_REAL_API !== 'true');
         setIsUsingMockData(isMock);
         setLoading(false);
       } catch (error) {
@@ -81,13 +80,16 @@ export function LegislationTracker() {
                           bill.bill_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (bill.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     
-    const matchesStatus = filterStatus ? bill.status === filterStatus : true;
+    const statusDescription = getBillStatusDescription(bill.status_id);
+    const matchesStatus = filterStatus ? statusDescription === filterStatus : true;
     
     return matchesSearch && matchesStatus;
   });
 
-  // Get unique statuses for the filter dropdown
-  const uniqueStatuses = Array.from(new Set(bills.map(bill => bill.status)));
+  // Get unique status descriptions for the filter dropdown
+  const uniqueStatusDescriptions = Array.from(
+    new Set(bills.map(bill => getBillStatusDescription(bill.status_id)))
+  );
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -142,8 +144,8 @@ export function LegislationTracker() {
           onChange={(e) => setFilterStatus(e.target.value || null)}
         >
           <option value="">All Statuses</option>
-          {uniqueStatuses.map(status => (
-            <option key={status} value={status}>{status}</option>
+          {uniqueStatusDescriptions.map(statusDesc => (
+            <option key={statusDesc} value={statusDesc}>{statusDesc}</option>
           ))}
         </select>
       </div>
@@ -179,7 +181,7 @@ export function LegislationTracker() {
                     variant="outline" 
                     className={`${getStatusColor(bill.status_id)} text-white`}
                   >
-                    {bill.status}
+                    {getBillStatusDescription(bill.status_id)}
                   </Badge>
                   {new Date(bill.last_action_date) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && (
                     <Badge variant="outline" className="bg-orange-500 text-white">
@@ -199,7 +201,7 @@ export function LegislationTracker() {
               </Button>
             </div>
             
-            <Progress value={bill.progress} className="mb-2" />
+            <Progress value={bill.progress || calculateProgress(bill.status_id)} max={100} className="mb-2" />
             
             <div className="text-sm text-muted-foreground">
               <p>{bill.last_action}</p>

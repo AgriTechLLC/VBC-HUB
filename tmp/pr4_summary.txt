@@ -1,0 +1,25 @@
+PR #4 for vote visualization has been successfully created and committed. The following changes were made:
+
+1. Created app/api/bills/[id]/votes/route.ts
+   - Implemented API route for retrieving vote data from LegiScan
+   - Added data processing for visualization presentation
+   - Created party breakdown analysis functionality
+   - Added caching for improved performance
+
+2. Created components/vote-donut.tsx
+   - Implemented interactive pie chart visualization using Recharts
+   - Created card-based UI with responsive design
+   - Added detailed party vote breakdown section
+   - Included loading, error, and empty states
+
+3. Updated app/(dashboard)/bills/[id]/page.tsx
+   - Added VoteDonut component to bill detail page
+   - Integrated with existing components in the UI
+
+The implementation provides users with an intuitive visualization of voting patterns:
+- At-a-glance view of yes/no/other vote percentages
+- Detailed party-by-party breakdown of voting
+- Interactive elements including tooltips and hovering
+- Clean presentation with a donut chart design
+
+This feature enhances the app's data visualization capabilities by giving users deeper insights into the political dynamics of legislation.
