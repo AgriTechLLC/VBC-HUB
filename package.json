@@ -51,12 +51,14 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "diff": "^7.0.0",
+    "dompurify": "^3.2.5",
     "embla-carousel-react": "^8.3.0",
     "eslint": "8.49.0",
     "eslint-config-next": "13.5.1",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.446.0",
     "next": "13.5.1",
+    "next-intl": "^4.0.2",
     "next-themes": "^0.3.0",
     "openai": "^4.95.0",
     "postcss": "8.4.30",
@@ -73,10 +75,14 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "5.2.2",
     "vaul": "^0.9.9",
-    "zod": "^3.23.8"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/diff": "^7.0.2",
+    "@types/dompurify": "^3.0.5",
     "@vitejs/plugin-react": "^4.4.0",
     "jsdom": "^26.1.0",
     "vitest": "^3.1.1"

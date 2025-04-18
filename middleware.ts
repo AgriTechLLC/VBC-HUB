@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import createIntlMiddleware from 'next-intl/middleware';
 
 // In-memory rate limit store (would be Redis in production)
 const rateLimits: Record<string, { count: number, timestamp: number }> = {};
@@ -10,14 +11,26 @@ const RATE_LIMIT_WINDOW = 60 * 1000;
 // Maximum requests per window
 const CHAT_RATE_LIMIT = 20; // 20 requests per minute for /api/chat
 
+// Create internationalization middleware
+const intlMiddleware = createIntlMiddleware({
+  locales: ['en'],
+  defaultLocale: 'en',
+  localeDetection: false
+});
+
 export function middleware(request: NextRequest) {
   // Only apply rate limiting to the chat API
   if (request.nextUrl.pathname === '/api/chat') {
     return rateLimitMiddleware(request);
   }
   
-  // Continue for other routes
-  return NextResponse.next();
+  // Skip internationalization for API routes
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+  
+  // Apply internationalization middleware for normal routes
+  return intlMiddleware(request);
 }
 
 function rateLimitMiddleware(request: NextRequest) {
@@ -56,5 +69,5 @@ function rateLimitMiddleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/((?!_next|.*\\..*).*)']
 };

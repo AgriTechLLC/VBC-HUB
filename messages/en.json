@@ -1,0 +1,59 @@
+{
+  "app": {
+    "title": "Virginia Blockchain Council",
+    "shortTitle": "VBC Hub"
+  },
+  "navigation": {
+    "home": "Home",
+    "legislation": "Legislation",
+    "events": "Events",
+    "resources": "Resources",
+    "about": "About"
+  },
+  "legislation": {
+    "title": "Legislation Tracker",
+    "searchPlaceholder": "Search bills...",
+    "allStatuses": "All Statuses",
+    "noResults": "No bills match your search criteria",
+    "lastUpdated": "Last updated",
+    "mockData": "Mock Data",
+    "liveApi": "Live API",
+    "officialPage": "View Official Page",
+    "viewDetails": "View Details",
+    "newActivity": "New Activity"
+  },
+  "billStatus": {
+    "1": "Introduced",
+    "2": "In Committee",
+    "3": "Passed Committee", 
+    "4": "Passed First Chamber",
+    "5": "Passed Second Chamber",
+    "6": "Sent to Executive",
+    "7": "Vetoed",
+    "8": "Enacted",
+    "9": "Dead",
+    "10": "Enrolled",
+    "11": "Withdrawn",
+    "unknown": "Unknown"
+  },
+  "filters": {
+    "selectAll": "Select All",
+    "clear": "Clear"
+  },
+  "events": {
+    "title": "Upcoming Events",
+    "noEvents": "No upcoming events",
+    "noEventsDescription": "There are no scheduled legislative events at this time.",
+    "rsvp": "RSVP",
+    "viewBill": "View Bill"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "message": "There was a problem loading the data. Please try again.",
+    "billsTitle": "Failed to load bills",
+    "billsMessage": "There was a problem loading the legislation data. Please try again.",
+    "eventsTitle": "Failed to load events",
+    "eventsMessage": "There was a problem loading the events data. Please try again.",
+    "retry": "Retry"
+  }
+}

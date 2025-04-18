@@ -1,78 +1,35 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, FileText, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatBillNumber, getStatusColor, getBillStatusDescription } from '@/lib/legiscan-redis';
-import { debounce } from '@/lib/utils';
+import { formatBillNumber } from '@/lib/legiscan-redis';
+import { useBills, Bill } from '@/hooks/useBills';
+import { ErrorState } from '@/components/ui/error-state';
+import { formatDate, getBillProgress, getBillStatusLabel } from '@/lib/utils';
+import { BillStatusBadge, BillActivityBadge } from '@/components/ui/bill-status-badge';
+import { SearchInput } from '@/components/ui/search-input';
+import { StatusFilter } from '@/components/ui/status-filter';
+import { SanitizedContent } from '@/components/ui/sanitized-html';
+import { useTranslations } from 'next-intl';
 
-interface Bill {
-  bill_id: number;
-  bill_number: string;
-  title: string;
-  status_id: number;
-  status: string;
-  progress: number;
-  last_action: string;
-  last_action_date: string;
-  url?: string;
-  description?: string;
+export interface LegislationTrackerProps {
+  className?: string;
 }
 
-export function LegislationTracker() {
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [loading, setLoading] = useState(true);
+export function LegislationTracker({ className = "" }: LegislationTrackerProps) {
+  const t = useTranslations();
+  const { data, error, isValidating, mutate } = useBills();
   const [expandedBillId, setExpandedBillId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [isUsingMockData, setIsUsingMockData] = useState(false);
+  const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
 
-  // Fetch bills from our API route
-  useEffect(() => {
-    async function fetchBills() {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/bills');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch bills');
-        }
-        
-        const data = await response.json();
-        setBills(data.bills);
-        setLastUpdated(data.lastUpdated);
-        // Determine if we're using mock data
-        // Mock data if we're in development mode and either:
-        // 1. The data is not cached (which means it's fresh mock data)
-        // 2. USE_REAL_API is false (which means we're in mock mode)
-        const isMock = process.env.NODE_ENV === 'development' && 
-                      (data.cached === false || process.env.USE_REAL_API !== 'true');
-        setIsUsingMockData(isMock);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching bills:', error);
-        setLoading(false);
-      }
-    }
-
-    fetchBills();
-
-    // Set up periodic refresh (every 5 minutes)
-    const refreshInterval = setInterval(fetchBills, 5 * 60 * 1000);
-    return () => clearInterval(refreshInterval);
-  }, []);
-
-  // Debounced search handler
-  const debouncedSetSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-    }, 200),
-    []
-  );
+  // Extract bills from API response
+  const bills = data?.data || [];
+  const lastUpdated = data?.lastUpdated || null;
+  const isUsingMockData = data?.isMockData || false;
 
   // Filter bills based on search term and status
   const filteredBills = bills.filter(bill => {
@@ -81,29 +38,23 @@ export function LegislationTracker() {
                           bill.bill_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (bill.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     
-    const matchesStatus = filterStatus ? bill.status === filterStatus : true;
+    const matchesStatus = selectedStatusIds.length === 0 || 
+                          selectedStatusIds.includes(bill.status_id);
     
     return matchesSearch && matchesStatus;
   });
 
-  // Get unique statuses for the filter dropdown
-  const uniqueStatuses = Array.from(new Set(bills.map(bill => bill.status)));
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // Get unique status IDs for the filter dropdown
+  const uniqueStatusIds = Array.from(new Set(bills.map(bill => bill.status_id)));
 
   const toggleExpandBill = (billId: number) => {
     setExpandedBillId(expandedBillId === billId ? null : billId);
   };
 
-  if (loading) {
+  // Show loading state
+  if (isValidating && !data) {
     return (
-      <div className="space-y-4">
+      <div className={`space-y-4 ${className}`}>
         {[1, 2, 3].map((i) => (
           <div key={i} className="border rounded-lg p-4">
             <div className="flex items-start justify-between mb-2">
@@ -124,41 +75,44 @@ export function LegislationTracker() {
     );
   }
 
+  // Show error state
+  if (error) {
+    return <ErrorState 
+      title={t('error.billsTitle')}
+      message={t('error.billsMessage')}
+      onRetry={() => mutate()}
+      className={className}
+    />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${className}`}>
       {/* Search and filter controls */}
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
-        <div className="relative flex-grow">
-          <input
-            type="text"
-            placeholder="Search bills..."
-            className="w-full px-4 py-2 border rounded-md"
-            onChange={(e) => debouncedSetSearch(e.target.value)}
-          />
-        </div>
-        <select
-          className="px-4 py-2 border rounded-md"
-          value={filterStatus || ''}
-          onChange={(e) => setFilterStatus(e.target.value || null)}
-        >
-          <option value="">All Statuses</option>
-          {uniqueStatuses.map(status => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder={t('legislation.searchPlaceholder')}
+          className="flex-grow"
+        />
+        <StatusFilter
+          statusOptions={uniqueStatusIds}
+          selectedStatuses={selectedStatusIds}
+          onStatusChange={setSelectedStatusIds}
+        />
       </div>
 
       {/* Last updated timestamp and API status */}
       <div className="flex justify-between items-center text-xs text-muted-foreground mb-2">
         {lastUpdated && (
           <div>
-            Last updated: {new Date(lastUpdated).toLocaleString()}
+            {t('legislation.lastUpdated')}: {new Date(lastUpdated).toLocaleString()}
           </div>
         )}
         {process.env.NEXT_PUBLIC_SHOW_API_STATUS === 'true' && (
           <div className="flex items-center">
             <span className={`inline-block w-2 h-2 rounded-full mr-1 ${isUsingMockData ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
-            <span>{isUsingMockData ? 'Mock Data' : 'Live API'}</span>
+            <span>{isUsingMockData ? t('legislation.mockData') : t('legislation.liveApi')}</span>
           </div>
         )}
       </div>
@@ -166,68 +120,82 @@ export function LegislationTracker() {
       {/* Bills List */}
       {filteredBills.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          No bills match your search criteria
+          {t('legislation.noResults')}
         </div>
       ) : (
-        filteredBills.map((bill) => (
-          <div key={bill.bill_id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold flex items-center gap-2">
-                  {formatBillNumber(bill.bill_number)}
-                  <Badge 
-                    variant="outline" 
-                    className={`${getStatusColor(bill.status_id)} text-white`}
-                  >
-                    {bill.status}
-                  </Badge>
-                  {new Date(bill.last_action_date) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && (
-                    <Badge variant="outline" className="bg-orange-500 text-white">
-                      New Activity
-                    </Badge>
-                  )}
-                </h3>
-                <p className="text-sm text-muted-foreground">{bill.title}</p>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => toggleExpandBill(bill.bill_id)}
-                aria-label={expandedBillId === bill.bill_id ? "Collapse bill details" : "Expand bill details"}
-              >
-                {expandedBillId === bill.bill_id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </Button>
-            </div>
-            
-            <Progress value={bill.progress} className="mb-2" />
-            
-            <div className="text-sm text-muted-foreground">
-              <p>{bill.last_action}</p>
-              <p className="text-xs">Updated: {formatDate(bill.last_action_date)}</p>
-            </div>
-            
-            {/* Expanded details */}
-            {expandedBillId === bill.bill_id && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="mb-4">{bill.description}</p>
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="flex items-center" asChild>
-                    <a href={bill.url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink size={14} className="mr-1" />
-                      View Official Page
-                    </a>
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex items-center" asChild>
-                    <a href={`/bills/${bill.bill_id}`}>
-                      <FileText size={14} className="mr-1" />
-                      View Details
-                    </a>
-                  </Button>
+        filteredBills.map((bill) => {
+          // Get progress bar settings based on bill status
+          const progressSettings = getBillProgress(bill.status_id, bill.progress);
+          
+          return (
+            <div key={bill.bill_id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    {formatBillNumber(bill.bill_number)}
+                    <BillStatusBadge statusId={bill.status_id} />
+                    <BillActivityBadge date={bill.last_action_date} />
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{bill.title}</p>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => toggleExpandBill(bill.bill_id)}
+                  aria-label={expandedBillId === bill.bill_id ? "Collapse bill details" : "Expand bill details"}
+                >
+                  {expandedBillId === bill.bill_id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </Button>
               </div>
-            )}
-          </div>
-        ))
+              
+              {bill.progress !== undefined && (
+                <Progress 
+                  value={progressSettings.value} 
+                  color={progressSettings.color}
+                  striped={progressSettings.striped}
+                  animated={progressSettings.animated}
+                  showLabel={true}
+                  className="mb-2"
+                  height="sm"
+                />
+              )}
+              
+              <div className="text-sm text-muted-foreground">
+                {bill.last_action && <p>{bill.last_action}</p>}
+                {bill.last_action_date && (
+                  <p className="text-xs">Updated: {formatDate(bill.last_action_date)}</p>
+                )}
+              </div>
+              
+              {/* Expanded details */}
+              {expandedBillId === bill.bill_id && (
+                <div className="mt-4 pt-4 border-t">
+                  {bill.description && (
+                    <div className="mb-4">
+                      <SanitizedContent html={bill.description} />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {bill.url && (
+                      <Button size="sm" variant="outline" className="flex items-center" asChild>
+                        <a href={bill.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink size={14} className="mr-1" />
+                          {t('legislation.officialPage')}
+                        </a>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="flex items-center" asChild>
+                      <a href={`/bills/${bill.bill_id}`}>
+                        <FileText size={14} className="mr-1" />
+                        {t('legislation.viewDetails')}
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
     </div>
   );
