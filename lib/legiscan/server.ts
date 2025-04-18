@@ -5,6 +5,7 @@
 
 import { kv } from '@vercel/kv';
 import { LegiScanApi, LegiScan } from './api';
+import PQueue from 'p-queue';
 
 // Load environment variables
 const LEGISCAN_API_KEY = process.env.LEGISCAN_API_KEY || '';
@@ -15,6 +16,14 @@ const CACHE_TTL = parseInt(process.env.CACHE_TTL || '3600'); // Default 1 hour
 const legiscanApi = new LegiScanApi({
   apiKey: LEGISCAN_API_KEY,
   cacheResults: false, // We'll handle caching ourselves
+});
+
+// Global rate limiter for expensive operations (getMasterListRaw, bulk searches)
+// This prevents exceeding the 30k/mo quota
+const globalBulkOperationsQueue = new PQueue({
+  concurrency: 1, // Only one bulk operation at a time
+  interval: 60 * 60 * 1000, // 1 hour interval
+  intervalCap: 2, // Max 2 bulk operations per hour
 });
 
 /**
@@ -154,6 +163,52 @@ export class ServerLegiScanApi {
     
     return response.masterlist;
   }
+  
+  /**
+   * Get raw master list of bills for the current Virginia session
+   * Rate limited to once per hour to avoid quota issues
+   */
+  static async getVaMasterListRaw(): Promise<Record<string, LegiScan.MasterListRawBill>> {
+    const currentSession = await this.getCurrentVaSession();
+    const cacheKey = `legiscan:va_masterlist_raw:${currentSession.session_id}`;
+    
+    // Try to get from cache first with a longer TTL (3 hours)
+    if (CACHE_ENABLED) {
+      try {
+        const cached = await kv.get(cacheKey);
+        if (cached) {
+          console.log(`Cache hit for ${cacheKey}`);
+          return cached as Record<string, LegiScan.MasterListRawBill>;
+        }
+      } catch (error) {
+        console.error(`Error accessing cache for ${cacheKey}:`, error);
+      }
+    }
+    
+    // If not in cache, use the global rate limiter for this expensive operation
+    console.log(`Cache miss for ${cacheKey}, queueing getMasterListRaw operation`);
+    
+    try {
+      // This will wait in the queue if we're exceeding our rate limit
+      const response = await globalBulkOperationsQueue.add(() => 
+        legiscanApi.getMasterListRaw(currentSession.session_id)
+      );
+      
+      // Cache with a longer TTL (3 hours) since this is an expensive operation
+      if (CACHE_ENABLED) {
+        try {
+          await kv.set(cacheKey, response.masterlist, { ex: 3 * 3600 });
+        } catch (error) {
+          console.error(`Error caching data for ${cacheKey}:`, error);
+        }
+      }
+      
+      return response.masterlist;
+    } catch (error) {
+      console.error(`Error fetching master list raw:`, error);
+      throw error;
+    }
+  }
 
   /**
    * Get bill details by ID
@@ -261,7 +316,83 @@ export class ServerLegiScanApi {
   }
   
   /**
+   * Throttled bulk search for multiple terms
+   * Rate limited to avoid excessive API usage
+   */
+  static async bulkSearch(
+    queries: string[],
+    options: { state?: string; year?: number | string; sessionId?: number | string; useRaw?: boolean } = {}
+  ): Promise<Array<LegiScan.SearchResponse | LegiScan.SearchRawResponse>> {
+    const { state = 'VA', year = 2, sessionId, useRaw = false } = options;
+    
+    // Create a unique cache key for this bulk operation
+    const cacheKey = `legiscan:bulksearch:${
+      sessionId ? `session:${sessionId}` : `${state}:${year}`
+    }:${queries.sort().join('+')}:${useRaw ? 'raw' : 'full'}`;
+    
+    // Try to get from cache first with a longer TTL (3 hours)
+    if (CACHE_ENABLED) {
+      try {
+        const cached = await kv.get(cacheKey);
+        if (cached) {
+          console.log(`Cache hit for bulk search: ${cacheKey}`);
+          return cached as Array<LegiScan.SearchResponse | LegiScan.SearchRawResponse>;
+        }
+      } catch (error) {
+        console.error(`Error accessing cache for ${cacheKey}:`, error);
+      }
+    }
+    
+    // Use the global bulk operations queue to rate limit
+    console.log(`Cache miss for bulk search, queueing operation for terms: ${queries.join(', ')}`);
+    
+    try {
+      // Run through the global queue to throttle these high-cost operations
+      const results = await globalBulkOperationsQueue.add(async () => {
+        // Inside the queue, we'll run each search sequentially with its own delay
+        const searchResults: Array<LegiScan.SearchResponse | LegiScan.SearchRawResponse> = [];
+        
+        for (const query of queries) {
+          console.log(`Running ${useRaw ? 'raw' : 'normal'} search for term: ${query}`);
+          
+          try {
+            // Run the appropriate search type
+            const result = useRaw
+              ? await this.getSearchRaw(query, { state, year, sessionId })
+              : await this.searchVaBills(query, { year, page: 1 });
+              
+            searchResults.push(result);
+            
+            // Add a delay between searches to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } catch (error) {
+            console.error(`Error searching for term "${query}":`, error);
+            // Continue with other queries even if one fails
+          }
+        }
+        
+        return searchResults;
+      });
+      
+      // Cache the results with a longer TTL (2 hours)
+      if (CACHE_ENABLED) {
+        try {
+          await kv.set(cacheKey, results, { ex: 2 * 3600 });
+        } catch (error) {
+          console.error(`Error caching bulk search results:`, error);
+        }
+      }
+      
+      return results;
+    } catch (error) {
+      console.error(`Error performing bulk search:`, error);
+      throw error;
+    }
+  }
+  
+  /**
    * Get list of blockchain-related bills in Virginia
+   * Uses rate-limited bulk search to prevent quota issues
    */
   static async getBlockchainBills(): Promise<LegiScan.Bill[]> {
     const searchTerms = [
@@ -272,12 +403,11 @@ export class ServerLegiScanApi {
       'distributed ledger'
     ];
     
-    // Use Promise.all to run searches in parallel
-    const searchPromises = searchTerms.map(term => 
-      this.searchVaBills(term, { year: 3 }) // Search recent sessions
-    );
-    
-    const searchResults = await Promise.all(searchPromises);
+    // Use bulkSearch to run searches with rate limiting
+    const searchResults = await this.bulkSearch(searchTerms, { 
+      year: 3,  // Search recent sessions
+      useRaw: false // Use normal search for full details
+    });
     
     // Collect unique bill IDs
     const billIds = new Set<number>();
@@ -291,18 +421,37 @@ export class ServerLegiScanApi {
       });
     });
     
-    // Fetch details for each bill
-    const billPromises = Array.from(billIds).map(billId => 
-      this.getBill(billId).catch(error => {
-        console.error(`Error fetching bill ${billId}:`, error);
-        return null;
-      })
-    );
+    console.log(`Found ${billIds.size} unique blockchain-related bills`);
     
-    const bills = await Promise.all(billPromises);
+    // Use batched fetching for bills to avoid overwhelming the API
+    const allBills: LegiScan.Bill[] = [];
+    const batchSize = 10; // Process 10 bills at a time
     
-    // Filter out null values (failed requests)
-    return bills.filter(bill => bill !== null) as LegiScan.Bill[];
+    const billIdArray = Array.from(billIds);
+    
+    for (let i = 0; i < billIdArray.length; i += batchSize) {
+      const batch = billIdArray.slice(i, i + batchSize);
+      console.log(`Fetching batch ${i/batchSize + 1} of ${Math.ceil(billIdArray.length/batchSize)}`);
+      
+      const batchPromises = batch.map(billId => 
+        this.getBill(billId).catch(error => {
+          console.error(`Error fetching bill ${billId}:`, error);
+          return null;
+        })
+      );
+      
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Add non-null results to our collection
+      allBills.push(...batchResults.filter(bill => bill !== null) as LegiScan.Bill[]);
+      
+      // Add a small delay between batches
+      if (i + batchSize < billIdArray.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    return allBills;
   }
   
   /**

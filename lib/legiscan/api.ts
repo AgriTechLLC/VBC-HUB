@@ -2,8 +2,17 @@
  * LegiScan API Client
  * Based on LegiScan API v1.90 documentation
  */
+import pRetry from 'p-retry';
+import PQueue from 'p-queue';
 
 const API_BASE_URL = 'https://api.legiscan.com';
+
+// Global rate limit queue for critical operations
+const rateLimitedQueue = new PQueue({
+  concurrency: 2, // Max 2 concurrent requests
+  interval: 1000, // Minimum 1 second between requests
+  intervalCap: 3  // Max 3 requests per interval
+});
 
 export interface LegiScanApiOptions {
   apiKey: string;
@@ -26,7 +35,7 @@ export class LegiScanApi {
   }
 
   /**
-   * Execute an API request to LegiScan
+   * Execute an API request to LegiScan with retry and rate limiting
    */
   private async request<T>(operation: string, params: Record<string, string | number> = {}): Promise<T> {
     // Build the query string
@@ -41,11 +50,29 @@ export class LegiScanApi {
 
     const url = `${this.baseUrl}/?${queryParams.toString()}`;
     
-    try {
+    // Check if this is a rate-limited operation (bulk operations)
+    const isRateLimited = ['getMasterListRaw', 'getDatasetRaw', 'getSearch', 'getSearchRaw'].includes(operation);
+    
+    // Define the fetch function
+    const fetchData = async (): Promise<T> => {
       const response = await fetch(url);
       
+      // Handle HTTP error responses
       if (!response.ok) {
-        throw new Error(`LegiScan API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        
+        // Create an error that includes status info for retry decisions
+        const error: any = new Error(`LegiScan API error: ${response.status} ${response.statusText}`);
+        error.status = response.status;
+        error.response = response;
+        error.data = errorText;
+        
+        // Determine if we should retry based on status code
+        if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
+          error.shouldRetry = true;
+        }
+        
+        throw error;
       }
 
       const data = await response.json();
@@ -53,12 +80,68 @@ export class LegiScanApi {
       // Check for API error response
       if (data.status === 'ERROR') {
         const message = data.alert?.message || 'Unknown error';
-        throw new Error(`LegiScan API returned error: ${message}`);
+        const error: any = new Error(`LegiScan API returned error: ${message}`);
+        
+        // Include the original response for reference
+        error.apiResponse = data;
+        
+        // Rate limit errors should be retried
+        if (message.includes('Rate limit') || message.includes('Quota')) {
+          error.shouldRetry = true;
+        }
+        
+        throw error;
       }
 
       return data as T;
+    };
+    
+    try {
+      // For rate-limited operations, use the queue
+      if (isRateLimited) {
+        return await rateLimitedQueue.add(() => 
+          pRetry(fetchData, {
+            retries: 3,
+            minTimeout: 2000, // Start with a 2-second delay
+            factor: 2,        // Exponential factor
+            onFailedAttempt: async (error) => {
+              console.warn(`Retry attempt for ${operation} (${error.attemptNumber}/4): ${error.message}`);
+              
+              // Don't retry certain errors
+              if (error.message.includes('Invalid API Key') || 
+                  error.message.includes('not found') ||
+                  !error.shouldRetry) {
+                throw new pRetry.AbortError(error.message);
+              }
+              
+              // For rate limit errors, wait longer
+              if (error.message.includes('Rate limit') || error.message.includes('Quota') || error.status === 429) {
+                console.warn('Rate limit hit, waiting before retry');
+                await new Promise(r => setTimeout(r, 5000 * error.attemptNumber)); // Wait 5s, 10s, 15s
+              }
+            }
+          })
+        );
+      } else {
+        // For regular operations, just use retry without the queue
+        return await pRetry(fetchData, {
+          retries: 3,
+          minTimeout: 1000, // Start with a 1-second delay
+          factor: 2,        // Exponential factor
+          onFailedAttempt: (error) => {
+            console.warn(`Retry attempt for ${operation} (${error.attemptNumber}/4): ${error.message}`);
+            
+            // Don't retry certain errors
+            if (error.message.includes('Invalid API Key') || 
+                error.message.includes('not found') ||
+                !error.shouldRetry) {
+              throw new pRetry.AbortError(error.message);
+            }
+          }
+        });
+      }
     } catch (error) {
-      console.error('Error fetching from LegiScan API:', error);
+      console.error(`Error fetching from LegiScan API (${operation}):`, error);
       throw error;
     }
   }
@@ -83,8 +166,12 @@ export class LegiScanApi {
 
   /**
    * Get master list of bills with minimal information for change detection
+   * Rate limited to prevent quota issues - this is a high-cost operation
    */
   async getMasterListRaw(sessionId: number | string) {
+    // This is a high-cost operation (counts as ~100 regular API calls)
+    // Add additional delay to ensure we don't hit rate limits
+    // We use the rateLimitedQueue automatically inside the request method
     return this.request<LegiScan.MasterListRawResponse>('getMasterListRaw', { id: sessionId });
   }
 
@@ -132,15 +219,19 @@ export class LegiScanApi {
 
   /**
    * Get search results
+   * Rate limited through the request method
    */
   async getSearch(options: { state: string, query: string, year?: number | string, page?: number } | { id: number | string, query: string, page?: number }) {
+    // Using the rate limiting queue for this operation
     return this.request<LegiScan.SearchResponse>('getSearch', options as Record<string, string | number>);
   }
 
   /**
    * Get search results with minimal information for bulk processing
+   * Rate limited through the request method
    */
   async getSearchRaw(options: { state: string, query: string, year?: number | string, page?: number } | { id: number | string, query: string, page?: number }) {
+    // Using the rate limiting queue for this operation
     return this.request<LegiScan.SearchRawResponse>('getSearchRaw', options as Record<string, string | number>);
   }
 
