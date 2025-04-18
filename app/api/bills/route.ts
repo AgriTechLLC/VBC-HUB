@@ -1,28 +1,17 @@
 import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
-import * as LegiScan from '@/lib/legiscan-redis';
+import { ServerLegiScanApi } from '@/lib/legiscan/server';
 import { embedBill } from '@/lib/embeddings';
-import { Redis } from '@upstash/redis';
+import { kv } from '@vercel/kv';
 
-// Initialize Redis client for bill cache
-let redis: Redis;
+// Constants
+const BILLS_CACHE_KEY = 'vbc:bills:all';
+const CACHE_TTL = process.env.CACHE_TTL ? parseInt(process.env.CACHE_TTL) : 3600; // 1 hour in seconds
 
-try {
-  redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL || '',
-    token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-  });
-} catch (error) {
-  console.error('Failed to initialize Redis client:', error);
-  // Will fall back to in-memory cache if Redis fails
-}
-
-// Fallback in-memory cache when Redis is unavailable (for development)
+// Fallback in-memory cache when KV is unavailable (for development)
 // Exported so the [id] route can access the same cache
 export let billCache: Record<string, any> = {};
 let lastFetchTime = 0;
-const CACHE_TTL = process.env.CACHE_TTL ? parseInt(process.env.CACHE_TTL) : 3600000; // 1 hour in milliseconds
-const BILLS_CACHE_KEY = 'vbc:bills:all';
 
 interface BillData {
   bill_id: number;
@@ -53,27 +42,25 @@ export async function GET(request: Request) {
       return getMockBills();
     }
     
-    // Try to get bills from Redis first
-    if (redis) {
-      try {
-        const cachedBills = await redis.get(BILLS_CACHE_KEY);
-        if (cachedBills) {
-          console.log('[API] Returning bills from Redis cache');
-          return NextResponse.json({
-            bills: Object.values(cachedBills),
-            cached: true,
-            lastUpdated: await redis.get('vbc:bills:lastUpdated') || new Date().toISOString()
-          });
-        }
-      } catch (error) {
-        console.error('[API] Redis bills cache read error:', error);
-        // Continue with in-memory cache or API fetch
+    // Try to get bills from KV first
+    try {
+      const cachedBills = await kv.get(BILLS_CACHE_KEY);
+      if (cachedBills) {
+        console.log('[API] Returning bills from KV cache');
+        return NextResponse.json({
+          bills: Object.values(cachedBills),
+          cached: true,
+          lastUpdated: await kv.get('vbc:bills:lastUpdated') || new Date().toISOString()
+        });
       }
+    } catch (error) {
+      console.error('[API] KV bills cache read error:', error);
+      // Continue with in-memory cache or API fetch
     }
     
-    // Check in-memory cache if Redis fails or is empty
+    // Check in-memory cache if KV fails or is empty
     const now = Date.now();
-    if (now - lastFetchTime < CACHE_TTL && Object.keys(billCache).length > 0) {
+    if (now - lastFetchTime < CACHE_TTL * 1000 && Object.keys(billCache).length > 0) {
       console.log('[API] Returning bills from memory cache');
       return NextResponse.json({
         bills: Object.values(billCache),
@@ -106,107 +93,43 @@ export async function GET(request: Request) {
  */
 export async function refreshBills() {
   try {
-    // Get current session for Virginia using the new auto-discover function
-    const sessionId = await LegiScan.currentVaSession();
-    if (!sessionId) {
-      throw new Error('No active session found for Virginia');
-    }
+    // Get blockchain-related bills from the new ServerLegiScanApi
+    const blockchainBills = await ServerLegiScanApi.getBlockchainBills();
     
-    // Get master list of bills
-    const masterList = await LegiScan.getMasterListRaw(sessionId);
+    // Create a new cache object
+    const newBillCache: Record<string, any> = {};
     
-    // Get stored change hashes from Redis or memory cache
-    let oldHashes: Record<string, string> = {};
-    
-    if (redis) {
-      try {
-        const cachedBills = await redis.get(BILLS_CACHE_KEY) as Record<string, any> || {};
-        Object.entries(cachedBills).forEach(([billId, bill]) => {
-          oldHashes[billId] = bill.change_hash;
-        });
-      } catch (error) {
-        console.error('[API] Redis bills cache read error for hashes:', error);
-        // Fall back to in-memory cache
-        Object.entries(billCache).forEach(([billId, bill]) => {
-          oldHashes[billId] = bill.change_hash;
-        });
-      }
-    } else {
-      // Use in-memory cache
-      Object.entries(billCache).forEach(([billId, bill]) => {
-        oldHashes[billId] = bill.change_hash;
-      });
-    }
-    
-    // Find changed bills
-    const changedBillIds = LegiScan.diffHashes(masterList, oldHashes);
-    
-    // If this is our first run, limit to blockchain-related bills only
-    const isFirstRun = Object.keys(oldHashes).length === 0;
-    
-    if (isFirstRun) {
-      console.log('[API] Initial load - filtering for blockchain-related bills');
+    // Process bills into our simplified format
+    for (const bill of blockchainBills) {
+      const billId = bill.bill_id.toString();
       
-      // Filter master list for blockchain-related bills
-      const blockchainKeywords = ['blockchain', 'crypto', 'digital asset', 'token', 'cryptocurrency', 'distributed ledger'];
-      
-      // Clear the changed bills array and refill with only blockchain-related bills
-      const blockchainBillIds: number[] = [];
-      
-      for (const [billId, bill] of Object.entries(masterList)) {
-        const title = (bill as any).title?.toLowerCase() || '';
-        const description = (bill as any).description?.toLowerCase() || '';
-        
-        const isBlockchainRelated = blockchainKeywords.some(keyword => 
-          title.includes(keyword) || description.includes(keyword)
-        );
-        
-        if (isBlockchainRelated) {
-          blockchainBillIds.push(Number(billId));
-        }
-      }
-      
-      // Use only blockchain-related bills for first run
-      changedBillIds.length = 0;
-      changedBillIds.push(...blockchainBillIds);
-    }
-    
-    console.log(`[API] Fetching details for ${changedBillIds.length} bills`);
-    
-    // Create a new cache object (either Redis or in-memory)
-    const newBillCache: Record<string, any> = { ...billCache };
-    
-    // Fetch details for changed bills
-    for (const billId of changedBillIds) {
-      const billDetails = await LegiScan.getBill(billId);
-      
-      // Store bill data in cache
       newBillCache[billId] = {
-        bill_id: billDetails.bill_id,
-        bill_number: billDetails.bill_number,
-        title: billDetails.title,
-        status_id: billDetails.status,
-        status: LegiScan.getBillStatusDescription(billDetails.status),
-        progress: LegiScan.calculateProgress(billDetails.status),
-        last_action: billDetails.history[0]?.action || 'No action',
-        last_action_date: billDetails.history[0]?.date || new Date().toISOString().split('T')[0],
-        url: billDetails.state_link,
-        description: billDetails.description || '',
-        change_hash: billDetails.change_hash
+        bill_id: bill.bill_id,
+        bill_number: bill.bill_number,
+        title: bill.title,
+        status_id: bill.status,
+        status: bill.status,  // Status description will be client-formatted
+        progress: 0,  // Progress will be client-calculated
+        last_action: bill.history && bill.history.length > 0 ? bill.history[0].action : 'No action',
+        last_action_date: bill.history && bill.history.length > 0 ? bill.history[0].date : new Date().toISOString().split('T')[0],
+        url: bill.state_link,
+        description: bill.description || '',
+        change_hash: bill.change_hash
       };
       
-      // Generate embeddings for bill text (if not in mock mode)
+      // Generate embeddings for bill text (if OpenAI API is configured)
       if (process.env.USE_REAL_API === 'true' && process.env.OPENAI_API_KEY) {
         try {
           // Get full bill text (when available) for embedding
-          const documentId = billDetails.texts?.[0]?.doc_id;
-          if (documentId) {
-            const billText = await LegiScan.getBillText(documentId);
+          if (bill.texts && bill.texts.length > 0) {
+            const documentId = bill.texts[0].doc_id;
+            const billText = await ServerLegiScanApi.getBillText(documentId);
+            
             if (billText && billText.doc) {
               // Extract text from base64 encoded document
               const textContent = Buffer.from(billText.doc, 'base64').toString();
               // Create embeddings for text search
-              await embedBill({ bill_id: billDetails.bill_id, text: textContent });
+              await embedBill({ bill_id: bill.bill_id, text: textContent });
             }
           }
         } catch (error) {
@@ -220,22 +143,20 @@ export async function refreshBills() {
     billCache = newBillCache;
     lastFetchTime = Date.now();
     
-    // Update Redis cache if available
-    if (redis) {
-      try {
-        await redis.set(BILLS_CACHE_KEY, newBillCache, { ex: Math.floor(CACHE_TTL / 1000) });
-        await redis.set('vbc:bills:lastUpdated', new Date().toISOString(), { ex: Math.floor(CACHE_TTL / 1000) });
-      } catch (error) {
-        console.error('[API] Redis bills cache write error:', error);
-        // Continue despite Redis errors
-      }
+    // Update KV cache
+    try {
+      await kv.set(BILLS_CACHE_KEY, newBillCache, { ex: CACHE_TTL });
+      await kv.set('vbc:bills:lastUpdated', new Date().toISOString(), { ex: CACHE_TTL });
+    } catch (error) {
+      console.error('[API] KV bills cache write error:', error);
+      // Continue despite KV errors
     }
     
     // Revalidate cache for the bills page
     revalidateTag('va-bills');
     
-    console.log(`[API] Updated ${changedBillIds.length} bills`);
-    return changedBillIds;
+    console.log(`[API] Updated ${Object.keys(newBillCache).length} bills`);
+    return Object.keys(newBillCache).map(Number);
   } catch (error) {
     console.error('[API] Error refreshing bills:', error);
     throw error;
@@ -308,20 +229,18 @@ function getMockBills() {
   });
   lastFetchTime = Date.now();
   
-  // Also update Redis cache if available
-  if (redis) {
-    try {
-      const redisBillCache: Record<string, any> = {};
-      mockBills.forEach(bill => {
-        redisBillCache[bill.bill_id] = bill;
-      });
-      
-      redis.set(BILLS_CACHE_KEY, redisBillCache, { ex: Math.floor(CACHE_TTL / 1000) });
-      redis.set('vbc:bills:lastUpdated', new Date().toISOString(), { ex: Math.floor(CACHE_TTL / 1000) });
-    } catch (error) {
-      console.error('[API] Redis mock bills cache write error:', error);
-      // Continue despite Redis errors
-    }
+  // Also update KV cache if available
+  try {
+    const kvBillCache: Record<string, any> = {};
+    mockBills.forEach(bill => {
+      kvBillCache[bill.bill_id] = bill;
+    });
+    
+    kv.set(BILLS_CACHE_KEY, kvBillCache, { ex: CACHE_TTL });
+    kv.set('vbc:bills:lastUpdated', new Date().toISOString(), { ex: CACHE_TTL });
+  } catch (error) {
+    console.error('[API] KV mock bills cache write error:', error);
+    // Continue despite KV errors
   }
 
   return NextResponse.json({
