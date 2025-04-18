@@ -407,6 +407,21 @@ export class ServerLegiScanApi {
   }
   
   /**
+   * Get people (legislators) for a session with long-term caching
+   */
+  static async getSessionPeople(sessionId: number | string): Promise<LegiScan.SessionPeopleResponse['sessionpeople']> {
+    const cacheKey = `legiscan:sessionpeople:${sessionId}`;
+    
+    const response = await this.getWithCache<LegiScan.SessionPeopleResponse>(
+      cacheKey,
+      () => legiscanApi.getSessionPeople(sessionId),
+      604800 // Cache for 1 week (7 * 24 * 3600 = 604800 seconds)
+    );
+    
+    return response.sessionpeople;
+  }
+  
+  /**
    * Set monitor status for bills
    */
   static async setMonitor(options: { 
