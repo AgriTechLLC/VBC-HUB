@@ -197,6 +197,34 @@ export class ServerLegiScanApi {
   }
   
   /**
+   * Get raw search results for bills in Virginia (or any state)
+   * Useful for bulk processing with minimum information
+   */
+  static async getSearchRaw(
+    query: string,
+    options: { state?: string; year?: number | string; page?: number; sessionId?: number | string } = {}
+  ): Promise<LegiScan.SearchRawResponse> {
+    const { state = 'VA', year = 2, page = 1, sessionId } = options;
+    
+    // We can search by state+year or by specific session ID
+    const searchParams = sessionId 
+      ? { id: sessionId, query, page }
+      : { state, query, year, page };
+    
+    const paramString = sessionId
+      ? `session:${sessionId}:${query}:${page}`
+      : `${state}:${query}:${year}:${page}`;
+    
+    const cacheKey = `legiscan:searchraw:${paramString}`;
+    
+    return this.getWithCache<LegiScan.SearchRawResponse>(
+      cacheKey,
+      () => legiscanApi.getSearchRaw(searchParams),
+      3600 // Cache for 1 hour
+    );
+  }
+  
+  /**
    * Get list of blockchain-related bills in Virginia
    */
   static async getBlockchainBills(): Promise<LegiScan.Bill[]> {
@@ -346,6 +374,21 @@ export class ServerLegiScanApi {
     );
     
     return response.dataset;
+  }
+  
+  /**
+   * Get raw dataset (ZIP file)
+   */
+  static async getDatasetRaw(sessionId: number | string, accessKey: string): Promise<LegiScan.DatasetRawResponse['datasetraw']> {
+    const cacheKey = `legiscan:datasetraw:${sessionId}`;
+    
+    const response = await this.getWithCache<LegiScan.DatasetRawResponse>(
+      cacheKey,
+      () => legiscanApi.getDatasetRaw(sessionId, accessKey),
+      86400 * 7 // Cache for 1 week
+    );
+    
+    return response.datasetraw;
   }
   
   /**

@@ -177,6 +177,16 @@ export class LegiScanApi {
   }
   
   /**
+   * Get raw dataset (ZIP file)
+   */
+  async getDatasetRaw(sessionId: number | string, accessKey: string) {
+    return this.request<LegiScan.DatasetRawResponse>('getDatasetRaw', { 
+      id: sessionId,
+      access_key: accessKey
+    });
+  }
+  
+  /**
    * Get monitor list
    */
   async getMonitorList(record: 'current' | 'archived' | string = 'current') {
@@ -628,6 +638,20 @@ export namespace LegiScan {
   // Dataset response
   export interface DatasetResponse extends ApiResponse {
     dataset: {
+      state_id: number;
+      session_id: number;
+      session_name: string;
+      dataset_hash: string;
+      dataset_date: string;
+      dataset_size: number;
+      mime: string;
+      zip: string; // Base64 encoded ZIP archive
+    };
+  }
+  
+  // Dataset raw response
+  export interface DatasetRawResponse extends ApiResponse {
+    datasetraw: {
       state_id: number;
       session_id: number;
       session_name: string;
