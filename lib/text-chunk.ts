@@ -15,7 +15,12 @@ export function chunk(text: string, tokens = 900): string[] {
   if (approxTokens <= tokens) return [text];
   
   // Calculate chunk size based on tokens
-  const size = Math.floor(words.length / Math.ceil(approxTokens / tokens));
+  // Ensure size is at least 1 to avoid infinite loops when the token
+  // limit is extremely small compared to the text length
+  const size = Math.max(
+    1,
+    Math.floor(words.length / Math.ceil(approxTokens / tokens))
+  );
   
   // Split into chunks
   const chunks: string[] = [];
